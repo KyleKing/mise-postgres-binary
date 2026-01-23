@@ -1,0 +1,36 @@
+/// hk configuration for linting and pre-commit hooks
+/// https://github.com/jdx/hk
+amends "package://github.com/jdx/hk/releases/download/v1.32.0/hk@1.32.0#/Config.pkl"
+
+import "package://github.com/jdx/hk/releases/download/v1.32.0/hk@1.32.0#/Builtins.pkl"
+
+local linters = new Mapping<String, Step> {
+    ["actionlint"] = (Builtins.actionlint) {
+        glob = ".github/workflows/*.{yml,yaml}"
+    }
+    ["luacheck"] = (Builtins.luacheck) {
+        glob = "**/*.lua"
+    }
+    ["ruff"] = (Builtins.ruff) {
+        glob = "**/*.py"
+    }
+    ["stylua"] = (Builtins.stylua) {
+        glob = "**/*.lua"
+    }
+}
+
+hooks {
+    ["pre-commit"] {
+        steps = linters
+        stash = "git"
+        fix = true
+    }
+    ["fix"] {
+        steps = linters
+        fix = true
+    }
+    ["check"] {
+        steps = linters
+        fix = false
+    }
+}

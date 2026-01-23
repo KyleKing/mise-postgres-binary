@@ -1,0 +1,58 @@
+# Dockerfile for testing mise-postgres-binary on Alpine (musl)
+FROM alpine:3.20
+
+ARG POSTGRES_VERSION=14.20.0
+
+# Install minimal dependencies
+RUN apk add --no-cache \
+    bash \
+    ca-certificates \
+    curl
+
+# Install mise
+RUN curl https://mise.run | sh
+ENV PATH="/root/.local/bin:$PATH"
+
+# Create plugin directory
+WORKDIR /plugin
+COPY . .
+
+# Link the plugin and configure mise
+RUN mise settings set experimental true \
+    && mise plugin link --force postgres-binary /plugin
+
+# Test script
+RUN printf '#!/bin/bash\n\
+set -euo pipefail\n\
+echo "=== Testing mise-postgres-binary on Alpine (musl) ==="\n\
+echo "Platform: $(uname -s) $(uname -m)"\n\
+echo "libc: musl"\n\
+echo ""\n\
+echo "Step 1: List available versions"\n\
+mise ls-remote postgres-binary:postgres | head -5\n\
+echo ""\n\
+echo "Step 2: Install PostgreSQL %s"\n\
+mise install postgres-binary:postgres@%s\n\
+echo ""\n\
+echo "Step 3: Verify installation"\n\
+mise exec postgres-binary:postgres@%s -- postgres --version\n\
+mise exec postgres-binary:postgres@%s -- psql --version\n\
+mise exec postgres-binary:postgres@%s -- pg_dump --version\n\
+echo ""\n\
+echo "Step 4: Check environment"\n\
+mise use postgres-binary:postgres@%s\n\
+eval "$(mise activate bash)"\n\
+echo "PGDATA=$PGDATA"\n\
+[ -d "$PGDATA" ] && echo "PGDATA directory exists" || exit 1\n\
+[ -f "$PGDATA/PG_VERSION" ] && echo "Database initialized (PG_VERSION present)" || exit 1\n\
+echo ""\n\
+echo "Step 5: Start PostgreSQL briefly"\n\
+pg_ctl start -D "$PGDATA" -l /tmp/pg.log -w\n\
+sleep 2\n\
+psql -c "SELECT version();" postgres\n\
+pg_ctl stop -D "$PGDATA" -m fast\n\
+echo ""\n\
+echo "=== All tests passed ==="\n' "${POSTGRES_VERSION}" "${POSTGRES_VERSION}" "${POSTGRES_VERSION}" "${POSTGRES_VERSION}" "${POSTGRES_VERSION}" "${POSTGRES_VERSION}" > /test.sh \
+    && chmod +x /test.sh
+
+CMD ["/test.sh"]

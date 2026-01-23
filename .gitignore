@@ -1,0 +1,40 @@
+# Mise PostgreSQL binaries - Lua temp files
+*.lua~
+.*.lua.swp
+
+# mise cache and downloads
+.mise.local.toml
+downloads/
+installs/
+
+# Test data directories
+postgres-data/
+test-data/
+
+# macOS
+.DS_Store
+
+# Linux
+*~
+
+# Windows
+Thumbs.db
+Desktop.ini
+
+# IDE
+.vscode/
+.idea/
+*.sublime-*
+
+# Logs
+*.log
+
+# Node (if using npm for tooling)
+node_modules/
+
+# Python (if using for testing)
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/

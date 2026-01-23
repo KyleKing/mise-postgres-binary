@@ -1,0 +1,148 @@
+# mise configuration for development tools and tasks
+
+[env]
+MISE_USE_VERSIONS_HOST = "0"
+
+[tools]
+actionlint = "latest"
+hk = "latest"
+pkl = "latest"
+ruff = "latest"
+stylua = "latest"
+uv = "latest"
+
+[tasks.format]
+description = "Format Lua code with stylua"
+run = "stylua metadata.lua hooks/"
+
+[tasks.lint]
+description = "Run all linters (luacheck, stylua, actionlint)"
+run = "hk"
+
+[tasks.ci]
+description = "Run CI pipeline (lint + test)"
+depends = ["lint", "test"]
+
+[tasks.test]
+description = "Test the backend plugin (link and list versions)"
+run = '''
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "Testing mise-postgres-binary backend plugin..."
+
+# Link plugin locally for testing
+mise plugin link --force postgres-binary "$PWD"
+
+# Test listing versions
+echo "Listing available versions..."
+mise ls-remote postgres-binary:postgres | head -5
+
+echo "Backend plugin tests passed!"
+'''
+
+[tasks.test-install]
+description = "Full installation test with database operations"
+run = '''
+#!/usr/bin/env bash
+set -euo pipefail
+
+PG_VERSION="${1:-15.15.0}"
+echo "Testing full installation of PostgreSQL $PG_VERSION..."
+
+# Link plugin
+mise plugin link --force postgres-binary "$PWD"
+
+# Install
+echo "Installing PostgreSQL $PG_VERSION..."
+mise install "postgres-binary:postgres@$PG_VERSION"
+
+# Verify binaries
+echo "Verifying binaries..."
+mise exec "postgres-binary:postgres@$PG_VERSION" -- postgres --version
+mise exec "postgres-binary:postgres@$PG_VERSION" -- psql --version
+mise exec "postgres-binary:postgres@$PG_VERSION" -- pg_dump --version
+
+# Check environment
+eval "$(mise activate bash)"
+mise use "postgres-binary:postgres@$PG_VERSION"
+echo "PGDATA=$PGDATA"
+[ -d "$PGDATA" ] && echo "PGDATA directory exists" || exit 1
+[ -f "$PGDATA/PG_VERSION" ] && echo "Database initialized" || exit 1
+
+# Start and query
+echo "Starting PostgreSQL..."
+pg_ctl start -D "$PGDATA" -l /tmp/pg-test.log -w
+psql -c "SELECT version();" postgres
+pg_ctl stop -D "$PGDATA" -m fast
+
+echo "Full installation test passed!"
+'''
+
+[tasks.test-docker]
+description = "Run Docker-based tests"
+run = '''
+#!/usr/bin/env bash
+set -euo pipefail
+
+FILTER="${1:-all}"
+./test/run-docker-tests.sh "$FILTER"
+'''
+
+[tasks.check-versions]
+description = "Check for new PostgreSQL versions and recommend CI matrix updates"
+run = "./scripts/update-postgres-versions.py"
+
+[tasks.update-versions]
+description = "Apply PostgreSQL version updates to CI matrix"
+run = "./scripts/update-postgres-versions.py --apply"
+
+[tasks.test-version-matrix]
+description = "Test multiple PostgreSQL versions (CI matrix simulation)"
+run = '''
+#!/usr/bin/env bash
+set -euo pipefail
+
+VERSIONS=("${@:-14.20.0 16.11.0 18.1.0}")
+if [[ "$#" -eq 0 ]]; then
+    VERSIONS=("14.20.0" "16.11.0" "18.1.0")
+fi
+
+mise plugin link --force postgres-binary "$PWD"
+
+FAILED=()
+for version in "${VERSIONS[@]}"; do
+    echo ""
+    echo "=== Testing PostgreSQL $version ==="
+    if mise install "postgres-binary:postgres@$version" && \
+       mise exec "postgres-binary:postgres@$version" -- postgres --version; then
+        echo "PASS: $version"
+    else
+        echo "FAIL: $version"
+        FAILED+=("$version")
+    fi
+done
+
+echo ""
+echo "=== Summary ==="
+echo "Tested: ${VERSIONS[*]}"
+if [[ ${#FAILED[@]} -eq 0 ]]; then
+    echo "Result: All versions passed"
+else
+    echo "Failed: ${FAILED[*]}"
+    exit 1
+fi
+'''
+
+[tasks.clean]
+description = "Clean up test installations"
+run = '''
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "Cleaning up..."
+mise plugin uninstall postgres-binary 2>/dev/null || true
+rm -rf ~/.local/share/mise/installs/postgres-binary* 2>/dev/null || true
+rm -rf ~/.local/share/mise/downloads/postgres-binary* 2>/dev/null || true
+echo "Clean complete"
+'''

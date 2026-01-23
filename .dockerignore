@@ -1,0 +1,41 @@
+# Git files
+.git/
+.gitignore
+.github/
+
+# Development tools
+.mise/
+.mise.toml.bak
+.tool-versions
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.python-version
+uv.lock
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Temporary files
+*.log
+.DS_Store
+
+# Documentation (not needed in containers)
+README.md
+TESTING.md
+LICENSE
+
+# CI/CD (not needed in containers)
+.luacheckrc
+stylua.toml
+hk.pkl
+scripts/
+
+# Docker artifacts
+docker-bake.hcl
