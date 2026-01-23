@@ -2,6 +2,7 @@
 FROM alpine:3.20
 
 ARG POSTGRES_VERSION=14.20.0
+ARG GITHUB_TOKEN
 
 # Install minimal dependencies + PostgreSQL runtime dependencies
 RUN apk add --no-cache \
@@ -23,6 +24,7 @@ WORKDIR /home/postgres
 # Install mise as postgres user
 RUN curl https://mise.run | sh
 ENV PATH="/home/postgres/.local/bin:$PATH"
+ENV GITHUB_TOKEN=${GITHUB_TOKEN}
 
 # Create plugin directory and copy plugin files
 RUN mkdir -p /home/postgres/plugin

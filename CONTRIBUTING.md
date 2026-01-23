@@ -86,6 +86,12 @@ pg_ctl stop -D "$PGDATA" -m fast
 
 Docker tests verify the plugin works on different Linux distributions.
 
+**Important:** Set `GITHUB_TOKEN` to avoid API rate limits (60 requests/hour without auth, 5000 with auth):
+
+```bash
+export GITHUB_TOKEN=$(gh auth token)
+```
+
 ```bash
 # Build and test all targets
 docker buildx bake

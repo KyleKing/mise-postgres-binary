@@ -24,12 +24,53 @@ local function fetch_page(page)
         page
     )
 
-    local resp, err = http.get({ url = api_url })
+    -- Build request options with optional authentication
+    local request_opts = { url = api_url }
+    local github_token = os.getenv("GITHUB_TOKEN") or os.getenv("GH_TOKEN")
+    if github_token and github_token ~= "" then
+        request_opts.headers = {
+            ["Authorization"] = "Bearer " .. github_token,
+        }
+    end
+
+    local resp, err = http.get(request_opts)
     if err then
         error("Failed to fetch versions from GitHub API (page " .. page .. "): " .. tostring(err))
     end
 
-    return json.decode(resp.body)
+    -- Validate HTTP response status
+    if resp.status_code and resp.status_code ~= 200 then
+        local err_msg = string.format(
+            "GitHub API returned status %d (page %d). This may indicate rate limiting or API issues. Response: %s",
+            resp.status_code,
+            page,
+            resp.body or "no body"
+        )
+        -- Add helpful hint for rate limiting
+        if resp.status_code == 403 and (resp.body or ""):match("rate limit") then
+            err_msg = err_msg
+                .. "\n\nTip: Set GITHUB_TOKEN environment variable to increase rate limit from 60 to 5000 requests/hour."
+        end
+        error(err_msg)
+    end
+
+    -- Validate response body exists
+    if not resp.body or resp.body == "" then
+        error("GitHub API returned empty response body (page " .. page .. ")")
+    end
+
+    -- Decode JSON with error handling
+    local ok, decoded = pcall(json.decode, resp.body)
+    if not ok then
+        error("Failed to parse JSON from GitHub API (page " .. page .. "): " .. tostring(decoded))
+    end
+
+    -- Validate decoded response is an array
+    if type(decoded) ~= "table" then
+        error("GitHub API returned unexpected format (page " .. page .. "): expected array, got " .. type(decoded))
+    end
+
+    return decoded
 end
 
 --- Lists available PostgreSQL versions from theseus-rs/postgresql-binaries GitHub releases

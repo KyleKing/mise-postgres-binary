@@ -24,6 +24,10 @@ variable "PLATFORMS" {
   }
 }
 
+variable "GITHUB_TOKEN" {
+  default = ""
+}
+
 # Reusable functions
 function "make_tag" {
   params = [distro, version_key, arch]
@@ -44,6 +48,9 @@ target "_base" {
   pull    = true
   cache-from = cache_config().cache-from
   cache-to   = cache_config().cache-to
+  args = {
+    GITHUB_TOKEN = "${GITHUB_TOKEN}"
+  }
 }
 
 target "_debian" {
