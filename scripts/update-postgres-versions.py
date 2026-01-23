@@ -3,9 +3,14 @@
 # requires-python = ">=3.11"
 # dependencies = ["httpx"]
 # ///
-"""Update PostgreSQL versions in CI matrix based on theseus-rs/postgresql-binaries releases."""
+"""Update PostgreSQL versions across all project files.
+
+Source of truth: .versions.json (newest/oldest of 5 supported major versions)
+Updates: ci.yml, docker-bake.hcl, mise.toml, test/Dockerfile.*
+"""
 
 import argparse
+import json
 import os
 import re
 import sys
@@ -14,11 +19,12 @@ from pathlib import Path
 import httpx
 
 REPO_ROOT = Path(__file__).parent.parent
+VERSIONS_FILE = REPO_ROOT / ".versions.json"
 CI_WORKFLOW = REPO_ROOT / ".github/workflows/ci.yml"
+DOCKER_BAKE = REPO_ROOT / "docker-bake.hcl"
 MISE_TOML = REPO_ROOT / "mise.toml"
 DOCKERFILES = list((REPO_ROOT / "test").glob("Dockerfile.*"))
-NUM_SUPPORTED_VERSIONS = 5  # PostgreSQL actively supports 5 major versions
-NUM_TEST_VERSIONS = 3  # Test oldest, middle, and newest of supported versions
+NUM_SUPPORTED_VERSIONS = 5
 MIN_MAJOR_VERSION = 13
 
 
@@ -61,88 +67,117 @@ def _version_tuple(version: str) -> tuple[int, ...]:
     return tuple(int(p) for p in version.split(".") if p.isdigit())
 
 
-def get_recommended_versions(available: dict[int, str]) -> list[str]:
-    """Get oldest, middle, and newest of the 5 actively supported major versions."""
-    # Get the 5 most recent major versions (actively supported)
+def get_recommended_versions(available: dict[int, str]) -> dict[str, str]:
+    """Get newest and oldest of the 5 actively supported major versions."""
     supported_majors = sorted(available.keys(), reverse=True)[:NUM_SUPPORTED_VERSIONS]
 
-    if len(supported_majors) < NUM_TEST_VERSIONS:
-        # Fall back to all available if less than expected
-        return [available[major] for major in supported_majors]
+    if len(supported_majors) < 2:
+        oldest = supported_majors[-1] if supported_majors else None
+        newest = supported_majors[0] if supported_majors else None
+    else:
+        oldest = supported_majors[-1]
+        newest = supported_majors[0]
 
-    # Select oldest, middle, and newest
-    oldest = supported_majors[-1]  # Last item (smallest major number)
-    newest = supported_majors[0]   # First item (largest major number)
-    middle = supported_majors[len(supported_majors) // 2]  # Middle item
-
-    # Return in descending order (newest to oldest)
-    selected_majors = sorted([newest, middle, oldest], reverse=True)
-    return [available[major] for major in selected_majors]
-
-
-def get_current_versions() -> list[str]:
-    """Parse current pg_version array from CI workflow."""
-    content = CI_WORKFLOW.read_text()
-    match = re.search(r"pg_version:\s*\[([^\]]+)\]", content)
-    if not match:
-        return []
-
-    versions_str = match.group(1)
-    return re.findall(r'"([^"]+)"', versions_str)
+    return {
+        "newest": available[newest] if newest else "",
+        "oldest": available[oldest] if oldest else "",
+    }
 
 
-def update_ci_workflow(versions: list[str]) -> bool:
+def read_versions_file() -> dict[str, str]:
+    """Read current versions from .versions.json."""
+    if not VERSIONS_FILE.exists():
+        return {"newest": "", "oldest": ""}
+    return json.loads(VERSIONS_FILE.read_text())
+
+
+def write_versions_file(versions: dict[str, str]) -> None:
+    """Write versions to .versions.json."""
+    content = json.dumps(versions, indent=2) + "\n"
+    VERSIONS_FILE.write_text(content)
+
+
+def update_ci_workflow(versions: dict[str, str]) -> bool:
     """Update pg_version matrix in CI workflow."""
     content = CI_WORKFLOW.read_text()
-    versions_str = ", ".join(f'"{v}"' for v in versions)
-    new_content = re.sub(
+    original = content
+
+    versions_str = f'"{versions["newest"]}", "{versions["oldest"]}"'
+    content = re.sub(
         r"(pg_version:\s*\[)[^\]]+(\])",
         rf"\g<1>{versions_str}\g<2>",
         content,
     )
 
-    oldest_version = versions[-1]
-    new_content = re.sub(
+    content = re.sub(
         r"postgres-binary:postgres@\d+\.\d+\.\d+",
-        f"postgres-binary:postgres@{oldest_version}",
-        new_content,
+        f"postgres-binary:postgres@{versions['oldest']}",
+        content,
     )
 
-    if new_content == content:
+    if content == original:
         return False
 
-    CI_WORKFLOW.write_text(new_content)
+    CI_WORKFLOW.write_text(content)
     return True
 
 
-def update_mise_toml(versions: list[str]) -> bool:
-    """Update CI_VERSIONS in mise.toml check-versions task."""
+def update_docker_bake(versions: dict[str, str]) -> bool:
+    """Update PG_VERSIONS in docker-bake.hcl."""
+    content = DOCKER_BAKE.read_text()
+    original = content
+
+    newest_major = versions["newest"].split(".")[0]
+    oldest_major = versions["oldest"].split(".")[0]
+
+    new_versions = f'''variable "PG_VERSIONS" {{
+  default = {{
+    pg{oldest_major} = "{versions["oldest"]}"
+    pg{newest_major} = "{versions["newest"]}"
+  }}
+}}'''
+
+    content = re.sub(
+        r'variable "PG_VERSIONS" \{[^}]+\}[^}]*\}',
+        new_versions,
+        content,
+        flags=re.DOTALL,
+    )
+
+    if content == original:
+        return False
+
+    DOCKER_BAKE.write_text(content)
+    return True
+
+
+def update_mise_toml(versions: dict[str, str]) -> bool:
+    """Update test-version-matrix defaults in mise.toml."""
     content = MISE_TOML.read_text()
     original = content
 
-    for dockerfile in DOCKERFILES:
-        df_content = dockerfile.read_text()
-        new_df = re.sub(
-            r"POSTGRES_VERSION=\d+\.\d+\.\d+",
-            f"POSTGRES_VERSION={versions[-1]}",
-            df_content,
-        )
-        if new_df != df_content:
-            dockerfile.write_text(new_df)
+    content = re.sub(
+        r'VERSIONS=\("[\d\.]+" "[\d\.]+"\s*(?:"[\d\.]+")?\)',
+        f'VERSIONS=("{versions["oldest"]}" "{versions["newest"]}")',
+        content,
+    )
 
-    return content != original
+    if content == original:
+        return False
+
+    MISE_TOML.write_text(content)
+    return True
 
 
-def update_dockerfiles(versions: list[str]) -> bool:
+def update_dockerfiles(versions: dict[str, str]) -> bool:
     """Update default POSTGRES_VERSION in Dockerfiles."""
     changed = False
-    oldest_version = versions[-1]
 
     for dockerfile in DOCKERFILES:
         content = dockerfile.read_text()
         new_content = re.sub(
             r"POSTGRES_VERSION=\d+\.\d+\.\d+",
-            f"POSTGRES_VERSION={oldest_version}",
+            f"POSTGRES_VERSION={versions['oldest']}",
             content,
         )
         if new_content != content:
@@ -154,8 +189,7 @@ def update_dockerfiles(versions: list[str]) -> bool:
 
 def set_github_output(key: str, value: str) -> None:
     """Set GitHub Actions output variable."""
-    output_file = os.environ.get("GITHUB_OUTPUT")
-    if output_file:
+    if output_file := os.environ.get("GITHUB_OUTPUT"):
         with open(output_file, "a") as f:
             f.write(f"{key}={value}\n")
 
@@ -182,11 +216,13 @@ def main() -> int:
         return 1
 
     recommended = get_recommended_versions(available)
-    current = get_current_versions()
+    current = read_versions_file()
 
     print()
-    print("=== Current CI matrix ===")
-    print(f"  {current}")
+    print("=== Current .versions.json ===")
+    print(f"  newest: {current.get('newest', 'N/A')}")
+    print(f"  oldest: {current.get('oldest', 'N/A')}")
+
     print()
     supported_majors = sorted(available.keys(), reverse=True)[:NUM_SUPPORTED_VERSIONS]
     print(f"=== Available supported versions ({NUM_SUPPORTED_VERSIONS} most recent majors) ===")
@@ -194,46 +230,48 @@ def main() -> int:
         print(f"  PG {major}: {available[major]}")
 
     print()
-    print(f"=== Recommended CI matrix (oldest, middle, newest of {NUM_SUPPORTED_VERSIONS} supported) ===")
-    for version in recommended:
-        major = int(version.split('.')[0])
-        role = "newest" if version == recommended[0] else ("oldest" if version == recommended[-1] else "middle")
-        print(f"  PG {major}: {version} ({role})")
+    print("=== Recommended versions (newest/oldest of supported) ===")
+    print(f"  newest: {recommended['newest']} (PG {recommended['newest'].split('.')[0]})")
+    print(f"  oldest: {recommended['oldest']} (PG {recommended['oldest'].split('.')[0]})")
 
-    versions_match = set(recommended) == set(current)
+    versions_match = recommended == current
 
     print()
     if versions_match:
-        print("Status: CI matrix is up to date")
+        print("Status: All versions are up to date")
         set_github_output("updated", "false")
         return 0
 
     print("Status: Update available")
-    print()
-    versions_str = ", ".join(f'"{v}"' for v in recommended)
-    print(f"Recommended: pg_version: [{versions_str}]")
 
     if args.check:
         set_github_output("updated", "true")
-        set_github_output("new_versions", versions_str)
+        set_github_output("newest_version", recommended["newest"])
+        set_github_output("oldest_version", recommended["oldest"])
         return 0
 
     if args.apply:
         print()
         print("Applying updates...")
 
+        write_versions_file(recommended)
+        print("  .versions.json: updated")
+
         updated_ci = update_ci_workflow(recommended)
-        print(
-            f"  .github/workflows/ci.yml: {'updated' if updated_ci else 'no changes'}"
-        )
+        print(f"  .github/workflows/ci.yml: {'updated' if updated_ci else 'no changes'}")
+
+        updated_bake = update_docker_bake(recommended)
+        print(f"  docker-bake.hcl: {'updated' if updated_bake else 'no changes'}")
+
+        updated_mise = update_mise_toml(recommended)
+        print(f"  mise.toml: {'updated' if updated_mise else 'no changes'}")
 
         updated_dockerfiles = update_dockerfiles(recommended)
-        print(
-            f"  test/Dockerfile.*: {'updated' if updated_dockerfiles else 'no changes'}"
-        )
+        print(f"  test/Dockerfile.*: {'updated' if updated_dockerfiles else 'no changes'}")
 
         set_github_output("updated", "true")
-        set_github_output("new_versions", versions_str)
+        set_github_output("newest_version", recommended["newest"])
+        set_github_output("oldest_version", recommended["oldest"])
 
         print()
         print("Updates applied. Review changes with: git diff")

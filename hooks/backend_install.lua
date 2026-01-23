@@ -92,8 +92,13 @@ local function download_and_verify_postgresql(version, platform, install_path)
         error("Failed to download PostgreSQL binary: " .. tostring(download_err))
     end
 
-    -- Verify SHA256 checksum
-    local computed_sha256 = cmd.exec("shasum -a 256 " .. temp_archive .. " | awk '{print $1}'"):gsub("%s+", "")
+    -- Verify SHA256 checksum (try sha256sum first for Linux, fallback to shasum for macOS)
+    local checksum_cmd = "(sha256sum "
+        .. temp_archive
+        .. " 2>/dev/null || shasum -a 256 "
+        .. temp_archive
+        .. ") | awk '{print $1}'"
+    local computed_sha256 = cmd.exec(checksum_cmd):gsub("%s+", "")
     if computed_sha256 ~= expected_sha256 then
         os.remove(temp_archive)
         error(string.format("SHA256 mismatch! Expected: %s, Got: %s", expected_sha256, computed_sha256))

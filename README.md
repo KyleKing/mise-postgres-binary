@@ -15,7 +15,7 @@ mise backend plugin for installing PostgreSQL from pre-built binaries.
 
 ```bash
 # Install the backend plugin
-mise plugin install postgres-binary https://github.com/mise-plugins/mise-postgres-binary
+mise plugin install postgres-binary https://github.com/kyleking/mise-postgres-binary
 
 # Use in your project
 mise use postgres-binary:postgres@14.20.0
@@ -80,104 +80,14 @@ Binaries are sourced from [theseus-rs/postgresql-binaries](https://github.com/th
 
 See [theseus-rs/postgresql-binaries releases](https://github.com/theseus-rs/postgresql-binaries/releases) for the complete list.
 
-## Development
-
-### Setup
-
-```bash
-# Clone the repository
-git clone https://github.com/mise-plugins/mise-postgres-binary
-cd mise-postgres-binary
-
-# Install development tools
-mise install
-
-# Link plugin for local testing
-mise plugin link --force postgres-binary "$PWD"
-```
-
-### Available Tasks
-
-```bash
-mise run format       # Format Lua code with stylua
-mise run lint         # Run all linters (luacheck, stylua, actionlint)
-mise run test         # Quick test (link plugin, list versions)
-mise run test-install # Full test with database operations
-mise run test-docker  # Run Docker-based tests
-mise run ci           # Full CI pipeline (lint + test)
-mise run clean        # Clean up test installations
-```
-
-### Testing
-
-See [TESTING.md](TESTING.md) for comprehensive testing instructions including:
-
-- Local testing on macOS/Linux
-- Docker testing (Debian glibc, Alpine musl)
-- CI verification
-
-Quick local test:
-
-```bash
-# Link and install
-mise plugin link --force postgres-binary "$PWD"
-mise install postgres-binary:postgres@14.20.0
-
-# Verify
-mise exec postgres-binary:postgres@14.20.0 -- postgres --version
-```
-
-Docker test:
-
-```bash
-# Run all Docker tests (using Docker Buildx Bake)
-./test/run-docker-tests.sh
-
-# Or specific target group
-./test/run-docker-tests.sh debian
-./test/run-docker-tests.sh alpine
-./test/run-docker-tests.sh ci
-```
-
-### Project Structure
-
-```
-mise-postgres-binary/
-├── hooks/
-│   ├── backend_list_versions.lua  # Fetch versions from GitHub API
-│   ├── backend_install.lua        # Download, verify, extract, initdb
-│   └── backend_exec_env.lua       # Set environment variables
-├── test/
-│   ├── Dockerfile.debian          # Debian (glibc) test container
-│   ├── Dockerfile.alpine          # Alpine (musl) test container
-│   └── run-docker-tests.sh        # Docker test runner
-├── .github/workflows/ci.yml       # CI/CD pipeline
-├── .luacheckrc                    # Lua linter configuration
-├── docker-bake.hcl                # Docker Buildx Bake configuration
-├── hk.pkl                         # Pre-commit hooks
-├── mise.toml                      # Development tools and tasks
-├── metadata.lua                   # Plugin metadata
-├── stylua.toml                    # Lua formatter configuration
-├── TESTING.md                     # Testing documentation
-└── README.md
-```
-
 ## How It Works
 
 1. **Version Discovery**: Queries GitHub API for available PostgreSQL releases
-2. **Platform Detection**: Uses `RUNTIME.osType` and `RUNTIME.archType` to determine platform
-3. **libc Detection**: On Linux, detects glibc vs musl to select correct binary
-4. **Download**: Fetches platform-specific binary tarball from GitHub releases
-5. **Verification**: Downloads SHA256 checksum and verifies binary integrity
-6. **Extraction**: Extracts tarball to installation directory
-7. **Initialization**: Runs `initdb` to create PostgreSQL data directory
-8. **Environment Setup**: Configures PGDATA, PATH, and library paths
-
-## Security
-
-- All downloads are verified using SHA256 checksums
-- Checksums are fetched from GitHub releases (`.sha256` files)
-- mise's built-in `http.download_file` function performs automatic verification
+2. **Platform Detection**: Detects OS and architecture to select correct binary
+3. **libc Detection**: On Linux, detects glibc vs musl
+4. **Download & Verify**: Fetches binary and verifies SHA256 checksum
+5. **Initialization**: Runs `initdb` to create PostgreSQL data directory
+6. **Environment Setup**: Configures PGDATA, PATH, and library paths
 
 ## Comparison with Source Builds
 
@@ -197,7 +107,7 @@ If you see "Unsupported platform" error, check:
 
 1. Your OS and architecture: `uname -s` and `uname -m`
 2. Available platforms in [theseus-rs releases](https://github.com/theseus-rs/postgresql-binaries/releases)
-3. Consider using the source-based [mise-postgres](https://github.com/mise-plugins/mise-postgres) plugin
+3. Consider using the source-based [mise-postgres](https://github.com/kyleking/mise-postgres) plugin
 
 ### SHA256 Verification Failed
 
@@ -223,13 +133,7 @@ pg_ctl start -D "$PGDATA" -o "-p 5433" -l /tmp/postgres.log  # Use alternate por
 
 ## Contributing
 
-Contributions are welcome! Please:
-
-1. Fork the repository
-2. Create a feature branch
-3. Run `mise run lint` before committing
-4. Run `mise run test-install` to verify changes
-5. Submit a pull request
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup and guidelines.
 
 ## License
 
@@ -239,7 +143,7 @@ MIT License - see LICENSE file for details
 
 - Binaries provided by [theseus-rs/postgresql-binaries](https://github.com/theseus-rs/postgresql-binaries)
 - Plugin template from [mise-backend-plugin-template](https://github.com/jdx/mise-backend-plugin-template)
-- Inspired by [mise-postgres](https://github.com/mise-plugins/mise-postgres) (source-based)
+- Inspired by [mise-postgres](https://github.com/kyleking/mise-postgres) (source-based)
 
 ## Links
 

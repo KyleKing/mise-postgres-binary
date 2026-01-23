@@ -3,23 +3,36 @@ FROM debian:bookworm-slim
 
 ARG POSTGRES_VERSION=14.20.0
 
-# Install minimal dependencies
+# Install minimal dependencies + PostgreSQL runtime dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     curl \
+    libicu72 \
+    libkrb5-3 \
+    liblz4-1 \
+    libxml2 \
     && rm -rf /var/lib/apt/lists/*
 
-# Install mise
-RUN curl https://mise.run | sh
-ENV PATH="/root/.local/bin:$PATH"
+# Create non-root user for PostgreSQL (initdb refuses to run as root)
+RUN useradd -m -s /bin/bash postgres
 
-# Create plugin directory
-WORKDIR /plugin
-COPY . .
+# Switch to postgres user for mise installation and testing
+USER postgres
+WORKDIR /home/postgres
+
+# Install mise as postgres user
+RUN curl https://mise.run | sh
+ENV PATH="/home/postgres/.local/bin:$PATH"
+
+# Create plugin directory and copy plugin files
+RUN mkdir -p /home/postgres/plugin
+WORKDIR /home/postgres/plugin
+COPY --chown=postgres:postgres . .
 
 # Link the plugin and configure mise
-RUN mise settings set experimental true \
-    && mise plugin link --force postgres-binary /plugin
+RUN mise trust \
+    && mise settings set experimental true \
+    && mise plugin link --force postgres-binary /home/postgres/plugin
 
 # Test script
 RUN printf '#!/bin/bash\n\
@@ -51,7 +64,7 @@ sleep 2\n\
 psql -c "SELECT version();" postgres\n\
 pg_ctl stop -D "$PGDATA" -m fast\n\
 echo ""\n\
-echo "=== All tests passed ==="\n' "${POSTGRES_VERSION}" "${POSTGRES_VERSION}" "${POSTGRES_VERSION}" "${POSTGRES_VERSION}" "${POSTGRES_VERSION}" "${POSTGRES_VERSION}" > /test.sh \
-    && chmod +x /test.sh
+echo "=== All tests passed ==="\n' "${POSTGRES_VERSION}" "${POSTGRES_VERSION}" "${POSTGRES_VERSION}" "${POSTGRES_VERSION}" "${POSTGRES_VERSION}" "${POSTGRES_VERSION}" > /home/postgres/test.sh \
+    && chmod +x /home/postgres/test.sh
 
-CMD ["/test.sh"]
+CMD ["/home/postgres/test.sh"]

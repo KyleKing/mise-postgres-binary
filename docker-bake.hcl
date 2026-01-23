@@ -13,7 +13,6 @@
 variable "PG_VERSIONS" {
   default = {
     pg14 = "14.20.0"
-    pg16 = "16.11.0"
     pg18 = "18.1.0"
   }
 }
@@ -61,19 +60,13 @@ target "_alpine" {
 
 # Debian (glibc) targets
 group "debian" {
-  targets = ["debian-pg14", "debian-pg16", "debian-pg18"]
+  targets = ["debian-pg14", "debian-pg18"]
 }
 
 target "debian-pg14" {
   inherits = ["_debian"]
   args     = { POSTGRES_VERSION = PG_VERSIONS.pg14 }
   tags     = [make_tag("debian", "pg14", "amd64")]
-}
-
-target "debian-pg16" {
-  inherits = ["_debian"]
-  args     = { POSTGRES_VERSION = PG_VERSIONS.pg16 }
-  tags     = [make_tag("debian", "pg16", "amd64")]
 }
 
 target "debian-pg18" {
