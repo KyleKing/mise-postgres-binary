@@ -7,6 +7,9 @@
 downloads/
 installs/
 
+# LuaRocks local dependencies
+.luarocks/
+
 # Test data directories
 postgres-data/
 test-data/

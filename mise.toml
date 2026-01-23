@@ -2,6 +2,7 @@
 
 [env]
 MISE_USE_VERSIONS_HOST = "0"
+_.path = [".luarocks/bin"]
 
 [tools]
 actionlint = "latest"
@@ -11,12 +12,23 @@ ruff = "latest"
 stylua = "latest"
 uv = "latest"
 
+[tasks.setup]
+description = "Install development dependencies (luacheck)"
+run = '''
+#!/usr/bin/env bash
+set -euo pipefail
+echo "Installing luacheck via luarocks..."
+luarocks install --tree .luarocks luacheck
+echo "Setup complete!"
+'''
+
 [tasks.format]
 description = "Format Lua code with stylua"
 run = "stylua metadata.lua hooks/"
 
 [tasks.lint]
 description = "Run all linters (luacheck, stylua, actionlint)"
+depends = ["setup"]
 run = "hk run check --all"
 
 [tasks.ci]

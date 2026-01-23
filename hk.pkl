@@ -10,12 +10,14 @@ local linters = new Mapping<String, Step> {
     }
     ["luacheck"] = (Builtins.luacheck) {
         glob = "**/*.lua"
+        exclude = "**/.luarocks/**"
     }
     ["ruff"] = (Builtins.ruff) {
         glob = "**/*.py"
     }
     ["stylua"] = (Builtins.stylua) {
         glob = "**/*.lua"
+        exclude = "**/.luarocks/**"
     }
 }
 
