@@ -117,7 +117,17 @@ local function download_and_verify_postgresql(version, platform, install_path)
     -- The archive contains a top-level directory (e.g., postgresql-15.15.0-aarch64-apple-darwin/)
     -- We need to move its contents up one level to install_path
     local extracted_dir = string.format("%s/postgresql-%s-%s", install_path, version, platform)
-    cmd.exec(string.format("mv %s/* %s/ && rmdir %s", extracted_dir, install_path, extracted_dir))
+    
+    -- Use Lua file operations for better cross-platform compatibility
+    local os_type = RUNTIME.osType:lower()
+    if os_type == "windows" then
+        -- Windows: Use robocopy or xcopy which handle moves better
+        cmd.exec(string.format('xcopy "%s" "%s" /E /I /Y /Q', extracted_dir, install_path))
+        cmd.exec(string.format('rmdir /S /Q "%s"', extracted_dir))
+    else
+        -- Unix: Use mv with wildcard
+        cmd.exec(string.format("mv %s/* %s/ && rmdir %s", extracted_dir, install_path, extracted_dir))
+    end
 
     -- Clean up archive file
     os.remove(temp_archive)
@@ -128,6 +138,7 @@ end
 --- Initializes PostgreSQL data directory (PGDATA) using initdb
 --- @param install_path string PostgreSQL installation directory
 local function initialize_pgdata(install_path)
+    local os_type = RUNTIME.osType:lower()
     local pgdata_dir = install_path .. "/data"
 
     -- Check if data directory already exists
@@ -138,7 +149,11 @@ local function initialize_pgdata(install_path)
 
     print("Initializing PostgreSQL data directory at: " .. pgdata_dir)
 
+    -- Handle Windows .exe extension
     local initdb_bin = install_path .. "/bin/initdb"
+    if os_type == "windows" then
+        initdb_bin = initdb_bin .. ".exe"
+    end
 
     -- Check if initdb exists (it should after extraction)
     if not file.exists(initdb_bin) then
@@ -147,7 +162,9 @@ local function initialize_pgdata(install_path)
 
     -- Run initdb to initialize the database cluster
     -- Use UTF-8 encoding and C locale for maximum compatibility
-    local result = cmd.exec(initdb_bin .. " -D " .. pgdata_dir .. " --encoding=UTF8 --locale=C")
+    -- Quote paths for Windows compatibility
+    local initdb_cmd = string.format('"%s" -D "%s" --encoding=UTF8 --locale=C', initdb_bin, pgdata_dir)
+    local result = cmd.exec(initdb_cmd)
 
     if result:match("error") or result:match("failed") then
         error("Failed to initialize PostgreSQL data directory: " .. result)
@@ -180,8 +197,15 @@ function PLUGIN:BackendInstall(ctx)
         error("This backend only supports 'postgres' or 'postgresql' tools")
     end
 
-    -- Create installation directory
-    cmd.exec("mkdir -p " .. install_path)
+    -- Create installation directory (handle both Unix and Windows)
+    local os_type = RUNTIME.osType:lower()
+    if os_type == "windows" then
+        -- Windows: Use mkdir with /p flag or ignore if exists
+        local mkdir_result = cmd.exec('if not exist "' .. install_path .. '" mkdir "' .. install_path .. '"')
+    else
+        -- Unix: Use mkdir -p
+        cmd.exec("mkdir -p " .. install_path)
+    end
 
     -- Detect platform and get Rust target triple
     local platform_target = get_rust_target()

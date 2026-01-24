@@ -59,6 +59,7 @@ jobs:
         run: |
           eval "$(mise activate bash)"
           mise use postgres-binary:postgres@${{ matrix.pg_version }}
+          eval "$(mise activate bash)"
           echo "PGDATA=$PGDATA"
           echo "PGHOME=$PGHOME"
           [ -d "$PGDATA" ] && echo "PGDATA directory exists" || exit 1
@@ -68,6 +69,7 @@ jobs:
         run: |
           eval "$(mise activate bash)"
           mise use postgres-binary:postgres@${{ matrix.pg_version }}
+          eval "$(mise activate bash)"
           pg_ctl start -D "$PGDATA" -l /tmp/pg.log -w
           psql -c "SELECT version();" postgres
           psql -c "CREATE TABLE test_table (id SERIAL PRIMARY KEY, name TEXT);" postgres
@@ -119,7 +121,10 @@ jobs:
 
       - name: Install PostgreSQL
         shell: bash
-        run: mise install postgres-binary:postgres@14.20.0
+        run: |
+          # Clean up any existing installation
+          mise uninstall postgres-binary:postgres@14.20.0 2>/dev/null || true
+          mise install postgres-binary:postgres@14.20.0
 
       - name: Verify binaries
         shell: bash
