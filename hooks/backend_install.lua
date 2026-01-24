@@ -191,13 +191,8 @@ function PLUGIN:BackendInstall(ctx)
         error("This backend only supports 'postgres' or 'postgresql' tools")
     end
 
-    -- Create installation directory (handle both Unix and Windows)
-    local os_type = RUNTIME.osType:lower()
-    if os_type == "windows" then
-        -- Windows: Use mkdir with /p flag or ignore if exists
-        local mkdir_result = cmd.exec('if not exist "' .. install_path .. '" mkdir "' .. install_path .. '"')
-    else
-        -- Unix: Use mkdir -p
+    -- Create installation directory if it doesn't exist
+    if not file.exists(install_path) then
         cmd.exec("mkdir -p " .. install_path)
     end
 
