@@ -120,7 +120,8 @@ local function download_and_verify_postgresql(version, platform, install_path)
     
     -- Move contents from extracted directory to install_path
     -- This works on both Unix and Git Bash on Windows
-    local move_cmd = string.format("cp -r %s/* %s/ && rm -rf %s", extracted_dir, install_path, extracted_dir)
+    -- Quote paths for spaces compatibility
+    local move_cmd = string.format('cp -r "%s"/* "%s/" && rm -rf "%s"', extracted_dir, install_path, extracted_dir)
     cmd.exec(move_cmd)
 
     -- Clean up archive file
@@ -193,7 +194,7 @@ function PLUGIN:BackendInstall(ctx)
 
     -- Create installation directory if it doesn't exist
     if not file.exists(install_path) then
-        cmd.exec("mkdir -p " .. install_path)
+        cmd.exec('mkdir -p "' .. install_path .. '"')
     end
 
     -- Detect platform and get Rust target triple
