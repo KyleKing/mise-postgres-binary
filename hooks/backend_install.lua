@@ -118,16 +118,10 @@ local function download_and_verify_postgresql(version, platform, install_path)
     -- We need to move its contents up one level to install_path
     local extracted_dir = string.format("%s/postgresql-%s-%s", install_path, version, platform)
     
-    -- Use Lua file operations for better cross-platform compatibility
-    local os_type = RUNTIME.osType:lower()
-    if os_type == "windows" then
-        -- Windows: Use robocopy or xcopy which handle moves better
-        cmd.exec(string.format('xcopy "%s" "%s" /E /I /Y /Q', extracted_dir, install_path))
-        cmd.exec(string.format('rmdir /S /Q "%s"', extracted_dir))
-    else
-        -- Unix: Use mv with wildcard
-        cmd.exec(string.format("mv %s/* %s/ && rmdir %s", extracted_dir, install_path, extracted_dir))
-    end
+    -- Move contents from extracted directory to install_path
+    -- This works on both Unix and Git Bash on Windows
+    local move_cmd = string.format("cp -r %s/* %s/ && rm -rf %s", extracted_dir, install_path, extracted_dir)
+    cmd.exec(move_cmd)
 
     -- Clean up archive file
     os.remove(temp_archive)
