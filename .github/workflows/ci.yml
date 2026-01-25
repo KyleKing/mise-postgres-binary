@@ -20,6 +20,7 @@ jobs:
       - uses: jdx/mise-action@v2
         with:
           experimental: true
+          cache: false
       - name: Run linters
         run: mise run lint
 
@@ -37,6 +38,7 @@ jobs:
       - uses: jdx/mise-action@v2
         with:
           experimental: true
+          cache: false
 
       - name: Link plugin
         run: mise plugin link --force postgres-binary "$PWD"
@@ -110,6 +112,7 @@ jobs:
       - uses: jdx/mise-action@v2
         with:
           experimental: true
+          cache: false
 
       - name: Link plugin
         shell: bash
@@ -121,10 +124,7 @@ jobs:
 
       - name: Install PostgreSQL
         shell: bash
-        run: |
-          # Clean up any existing installation
-          mise uninstall postgres-binary:postgres@14.20.0 2>/dev/null || true
-          mise install postgres-binary:postgres@14.20.0
+        run: mise install postgres-binary:postgres@14.20.0
 
       - name: Verify binaries
         shell: bash
