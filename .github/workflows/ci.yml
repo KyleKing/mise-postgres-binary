@@ -17,6 +17,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y lua5.4 liblua5.4-dev luarocks
+      # Disable cache to prevent stale installations from interfering with tests
       - uses: jdx/mise-action@v2
         with:
           experimental: true
@@ -35,6 +36,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+      # Disable cache to prevent stale installations from interfering with tests
       - uses: jdx/mise-action@v2
         with:
           experimental: true
@@ -109,6 +111,7 @@ jobs:
     continue-on-error: true
     steps:
       - uses: actions/checkout@v4
+      # Disable cache to prevent stale installations from interfering with tests
       - uses: jdx/mise-action@v2
         with:
           experimental: true
