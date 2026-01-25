@@ -20,6 +20,7 @@ jobs:
       - uses: jdx/mise-action@v2
         with:
           experimental: true
+          cache: false
       - name: Run linters
         run: mise run lint
 
@@ -37,6 +38,7 @@ jobs:
       - uses: jdx/mise-action@v2
         with:
           experimental: true
+          cache: false
 
       - name: Link plugin
         run: mise plugin link --force postgres-binary "$PWD"
@@ -108,6 +110,7 @@ jobs:
       - uses: jdx/mise-action@v2
         with:
           experimental: true
+          cache: false
 
       - name: Link plugin
         shell: bash
