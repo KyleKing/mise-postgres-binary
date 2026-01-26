@@ -7,10 +7,20 @@ on:
     branches: [main, master]
   workflow_dispatch:
 
+# Cancel in-progress runs when a new workflow on the same PR/branch is started
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+# Minimal permissions for security
+permissions:
+  contents: read
+
 jobs:
   lint:
     name: Lint
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - name: Install Lua and LuaRocks
@@ -28,6 +38,7 @@ jobs:
   test:
     name: Test (${{ matrix.os }}, PG ${{ matrix.pg_version }})
     needs: lint
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -84,6 +95,7 @@ jobs:
   test-docker:
     name: Test Docker (${{ matrix.target }})
     needs: lint
+    timeout-minutes: 20
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -107,6 +119,7 @@ jobs:
   test-windows:
     name: Test (Windows)
     needs: lint
+    timeout-minutes: 30
     runs-on: windows-latest
     continue-on-error: true
     steps:

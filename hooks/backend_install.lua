@@ -117,12 +117,12 @@ local function download_and_verify_postgresql(version, platform, install_path)
     -- The archive contains a top-level directory (e.g., postgresql-15.15.0-aarch64-apple-darwin/)
     -- We need to move its contents up one level to install_path
     local extracted_dir = string.format("%s/postgresql-%s-%s", install_path, version, platform)
-    
+
     -- Move contents from extracted directory to install_path
     -- This works on both Unix and Git Bash on Windows
     -- Use sh -c to ensure proper glob expansion with quoted paths
-    local move_cmd = string.format('sh -c \'cp -r "%s"/* "%s/" && rm -rf "%s"\'', 
-                                   extracted_dir, install_path, extracted_dir)
+    local move_cmd =
+        string.format('sh -c \'cp -r "%s"/* "%s/" && rm -rf "%s"\'', extracted_dir, install_path, extracted_dir)
     cmd.exec(move_cmd)
 
     -- Clean up archive file
