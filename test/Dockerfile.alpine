@@ -12,7 +12,8 @@ RUN apk add --no-cache \
     icu-libs \
     krb5-libs \
     libxml2 \
-    lz4-libs
+    lz4-libs \
+    readline
 
 # Create non-root user for PostgreSQL (initdb refuses to run as root)
 RUN adduser -D -s /bin/bash postgres

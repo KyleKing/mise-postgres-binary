@@ -75,6 +75,7 @@ local function download_and_verify_postgresql(version, platform, install_path)
     end
 
     -- Parse checksum (format: "abc123...  filename" or just "abc123...")
+    -- The checksum file contains just the hash on the first line
     local expected_sha256 = checksum_resp.body:match("^(%x+)")
     if not expected_sha256 then
         error("Invalid checksum format in file: " .. checksum_resp.body)
@@ -92,13 +93,20 @@ local function download_and_verify_postgresql(version, platform, install_path)
         error("Failed to download PostgreSQL binary: " .. tostring(download_err))
     end
 
-    -- Verify SHA256 checksum (try sha256sum first for Linux, fallback to shasum for macOS)
-    local checksum_cmd = "(sha256sum "
-        .. temp_archive
-        .. " 2>/dev/null || shasum -a 256 "
-        .. temp_archive
-        .. ") | awk '{print $1}'"
-    local computed_sha256 = cmd.exec(checksum_cmd):gsub("%s+", "")
+    -- Verify SHA256 checksum (cross-platform)
+    local os_type = RUNTIME.osType:lower()
+    local checksum_cmd
+    if os_type == "windows" then
+        -- Windows: Use CertUtil and extract hash from output
+        checksum_cmd = string.format('certutil -hashfile "%s" SHA256 | findstr /v "hash" | findstr /v "CertUtil"', temp_archive)
+    else
+        -- Unix: Use sha256sum or shasum
+        checksum_cmd = string.format('(sha256sum "%s" 2>/dev/null || shasum -a 256 "%s") | awk \'{print $1}\'', temp_archive, temp_archive)
+    end
+    
+    local computed_sha256 = cmd.exec(checksum_cmd):gsub("%s+", ""):lower()
+    expected_sha256 = expected_sha256:lower()
+    
     if computed_sha256 ~= expected_sha256 then
         os.remove(temp_archive)
         error(string.format("SHA256 mismatch! Expected: %s, Got: %s", expected_sha256, computed_sha256))
