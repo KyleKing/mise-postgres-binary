@@ -74,9 +74,11 @@ local function download_and_verify_postgresql(version, platform, install_path)
         error("Failed to download checksum file: " .. tostring(checksum_err))
     end
 
-    -- Parse checksum (format: "abc123...  filename" or just "abc123...")
-    -- The checksum file contains just the hash on the first line
-    local expected_sha256 = checksum_resp.body:match("^(%x+)")
+    -- Parse checksum from file
+    -- The file may contain just the hash, or it may contain CertUtil output format:
+    -- "SHA256 hash of file:\n<hash>\nCertUtil: -hashfile command completed successfully."
+    -- Extract any sequence of exactly 64 hex characters (SHA256 hash)
+    local expected_sha256 = checksum_resp.body:match("(%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x)")
     if not expected_sha256 then
         error("Invalid checksum format in file: " .. checksum_resp.body)
     end
