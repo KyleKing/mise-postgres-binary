@@ -100,7 +100,7 @@ local function download_and_verify_postgresql(version, platform, install_path)
         -- Windows: Use CertUtil and extract only hexadecimal hash lines
         -- Output format: "SHA256 hash of file:\n<hash>\nCertUtil: -hashfile command completed successfully."
         -- The regex matches lines containing only hex characters (the hash)
-        checksum_cmd = string.format('certutil -hashfile "%s" SHA256 | findstr /r "^[0-9a-fA-F][0-9a-fA-F]*$"', temp_archive)
+        checksum_cmd = string.format('certutil -hashfile "%s" SHA256 | findstr /r "^[0-9a-fA-F]+$"', temp_archive)
     else
         -- Unix: Use sha256sum or shasum
         checksum_cmd = string.format("(sha256sum \"%s\" 2>/dev/null || shasum -a 256 \"%s\") | awk '{print $1}'", temp_archive, temp_archive)
