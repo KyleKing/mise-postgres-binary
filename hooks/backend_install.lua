@@ -77,10 +77,10 @@ local function download_and_verify_postgresql(version, platform, install_path)
     -- Parse checksum from file
     -- The file may contain just the hash, or it may contain CertUtil output format:
     -- "SHA256 hash of file:\n<hash>\nCertUtil: -hashfile command completed successfully."
-    -- Extract any sequence of exactly 64 hex characters (SHA256 hash)
+    -- Extract any sequence of exactly 64 hex characters (SHA256 hash length)
     local expected_sha256 = checksum_resp.body:match("(%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x)")
-    if not expected_sha256 then
-        error("Invalid checksum format in file: " .. checksum_resp.body)
+    if not expected_sha256 or #expected_sha256 ~= 64 then
+        error("Invalid checksum format in file (expected 64-char SHA256): " .. checksum_resp.body)
     end
 
     print("Expected SHA256: " .. expected_sha256)
