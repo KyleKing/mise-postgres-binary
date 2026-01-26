@@ -100,16 +100,21 @@ local function download_and_verify_postgresql(version, platform, install_path)
         -- Windows: Use CertUtil and extract only the 64-character SHA256 hash line
         -- Output format: "SHA256 hash of file:\n<hash>\nCertUtil: -hashfile command completed successfully."
         -- The regex matches exactly 64 hexadecimal characters (SHA256 hash length)
-        checksum_cmd = string.format('certutil -hashfile "%s" SHA256 | findstr /r "^[0-9a-fA-F]\\{64\\}$"', temp_archive)
+        checksum_cmd =
+            string.format('certutil -hashfile "%s" SHA256 | findstr /r "^[0-9a-fA-F]\\{64\\}$"', temp_archive)
     else
         -- Unix: Use sha256sum or shasum
-        checksum_cmd = string.format("(sha256sum \"%s\" 2>/dev/null || shasum -a 256 \"%s\") | awk '{print $1}'", temp_archive, temp_archive)
+        checksum_cmd = string.format(
+            '(sha256sum "%s" 2>/dev/null || shasum -a 256 "%s") | awk \'{print $1}\'',
+            temp_archive,
+            temp_archive
+        )
     end
-    
+
     -- Normalize both checksums: remove whitespace and convert to lowercase
     local computed_sha256 = cmd.exec(checksum_cmd):gsub("%s+", ""):lower()
     local expected_sha256_normalized = expected_sha256:gsub("%s+", ""):lower()
-    
+
     if computed_sha256 ~= expected_sha256_normalized then
         os.remove(temp_archive)
         error(string.format("SHA256 mismatch! Expected: %s, Got: %s", expected_sha256_normalized, computed_sha256))
