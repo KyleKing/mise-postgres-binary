@@ -74,10 +74,13 @@ local function download_and_verify_postgresql(version, platform, install_path)
         error("Failed to download checksum file: " .. tostring(checksum_err))
     end
 
-    -- Parse checksum (format: "abc123...  filename" or just "abc123...")
-    local expected_sha256 = checksum_resp.body:match("^(%x+)")
-    if not expected_sha256 then
-        error("Invalid checksum format in file: " .. checksum_resp.body)
+    -- Parse checksum from file
+    -- The file may contain just the hash, or it may contain CertUtil output format:
+    -- "SHA256 hash of file:\n<hash>\nCertUtil: -hashfile command completed successfully."
+    -- Extract any sequence of exactly 64 hex characters (SHA256 hash length)
+    local expected_sha256 = checksum_resp.body:match("(%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x)")
+    if not expected_sha256 or #expected_sha256 ~= 64 then
+        error("Invalid checksum format in file (expected 64-char SHA256): " .. checksum_resp.body)
     end
 
     print("Expected SHA256: " .. expected_sha256)
@@ -92,16 +95,31 @@ local function download_and_verify_postgresql(version, platform, install_path)
         error("Failed to download PostgreSQL binary: " .. tostring(download_err))
     end
 
-    -- Verify SHA256 checksum (try sha256sum first for Linux, fallback to shasum for macOS)
-    local checksum_cmd = "(sha256sum "
-        .. temp_archive
-        .. " 2>/dev/null || shasum -a 256 "
-        .. temp_archive
-        .. ") | awk '{print $1}'"
-    local computed_sha256 = cmd.exec(checksum_cmd):gsub("%s+", "")
-    if computed_sha256 ~= expected_sha256 then
+    -- Verify SHA256 checksum (cross-platform)
+    local os_type = RUNTIME.osType:lower()
+    local checksum_cmd
+    if os_type == "windows" then
+        -- Windows: Use CertUtil and extract only the 64-character SHA256 hash line
+        -- Output format: "SHA256 hash of file:\n<hash>\nCertUtil: -hashfile command completed successfully."
+        -- The regex matches exactly 64 hexadecimal characters (SHA256 hash length)
+        checksum_cmd =
+            string.format('certutil -hashfile "%s" SHA256 | findstr /r "^[0-9a-fA-F]\\{64\\}$"', temp_archive)
+    else
+        -- Unix: Use sha256sum or shasum
+        checksum_cmd = string.format(
+            '(sha256sum "%s" 2>/dev/null || shasum -a 256 "%s") | awk \'{print $1}\'',
+            temp_archive,
+            temp_archive
+        )
+    end
+
+    -- Normalize both checksums: remove whitespace and convert to lowercase
+    local computed_sha256 = cmd.exec(checksum_cmd):gsub("%s+", ""):lower()
+    local expected_sha256_normalized = expected_sha256:gsub("%s+", ""):lower()
+
+    if computed_sha256 ~= expected_sha256_normalized then
         os.remove(temp_archive)
-        error(string.format("SHA256 mismatch! Expected: %s, Got: %s", expected_sha256, computed_sha256))
+        error(string.format("SHA256 mismatch! Expected: %s, Got: %s", expected_sha256_normalized, computed_sha256))
     end
 
     print("Download complete, SHA256 verified")
@@ -117,7 +135,13 @@ local function download_and_verify_postgresql(version, platform, install_path)
     -- The archive contains a top-level directory (e.g., postgresql-15.15.0-aarch64-apple-darwin/)
     -- We need to move its contents up one level to install_path
     local extracted_dir = string.format("%s/postgresql-%s-%s", install_path, version, platform)
-    cmd.exec(string.format("mv %s/* %s/ && rmdir %s", extracted_dir, install_path, extracted_dir))
+
+    -- Move contents from extracted directory to install_path
+    -- This works on both Unix and Git Bash on Windows
+    -- Use sh -c to ensure proper glob expansion with quoted paths
+    local move_cmd =
+        string.format('sh -c \'cp -r "%s"/* "%s/" && rm -rf "%s"\'', extracted_dir, install_path, extracted_dir)
+    cmd.exec(move_cmd)
 
     -- Clean up archive file
     os.remove(temp_archive)
@@ -128,6 +152,7 @@ end
 --- Initializes PostgreSQL data directory (PGDATA) using initdb
 --- @param install_path string PostgreSQL installation directory
 local function initialize_pgdata(install_path)
+    local os_type = RUNTIME.osType:lower()
     local pgdata_dir = install_path .. "/data"
 
     -- Check if data directory already exists
@@ -138,7 +163,11 @@ local function initialize_pgdata(install_path)
 
     print("Initializing PostgreSQL data directory at: " .. pgdata_dir)
 
+    -- Handle Windows .exe extension
     local initdb_bin = install_path .. "/bin/initdb"
+    if os_type == "windows" then
+        initdb_bin = initdb_bin .. ".exe"
+    end
 
     -- Check if initdb exists (it should after extraction)
     if not file.exists(initdb_bin) then
@@ -147,7 +176,9 @@ local function initialize_pgdata(install_path)
 
     -- Run initdb to initialize the database cluster
     -- Use UTF-8 encoding and C locale for maximum compatibility
-    local result = cmd.exec(initdb_bin .. " -D " .. pgdata_dir .. " --encoding=UTF8 --locale=C")
+    -- Quote paths for Windows compatibility
+    local initdb_cmd = string.format('"%s" -D "%s" --encoding=UTF8 --locale=C', initdb_bin, pgdata_dir)
+    local result = cmd.exec(initdb_cmd)
 
     if result:match("error") or result:match("failed") then
         error("Failed to initialize PostgreSQL data directory: " .. result)
@@ -180,8 +211,10 @@ function PLUGIN:BackendInstall(ctx)
         error("This backend only supports 'postgres' or 'postgresql' tools")
     end
 
-    -- Create installation directory
-    cmd.exec("mkdir -p " .. install_path)
+    -- Create installation directory if it doesn't exist
+    if not file.exists(install_path) then
+        cmd.exec('mkdir -p "' .. install_path .. '"')
+    end
 
     -- Detect platform and get Rust target triple
     local platform_target = get_rust_target()

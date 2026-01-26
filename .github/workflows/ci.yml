@@ -7,25 +7,38 @@ on:
     branches: [main, master]
   workflow_dispatch:
 
+# Cancel in-progress runs when a new workflow on the same PR/branch is started
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+# Minimal permissions for security
+permissions:
+  contents: read
+
 jobs:
   lint:
     name: Lint
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - name: Install Lua and LuaRocks
         run: |
           sudo apt-get update
           sudo apt-get install -y lua5.4 liblua5.4-dev luarocks
+      # Disable cache to prevent stale installations from interfering with tests
       - uses: jdx/mise-action@v2
         with:
           experimental: true
+          cache: false
       - name: Run linters
         run: mise run lint
 
   test:
     name: Test (${{ matrix.os }}, PG ${{ matrix.pg_version }})
     needs: lint
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -34,9 +47,11 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+      # Disable cache to prevent stale installations from interfering with tests
       - uses: jdx/mise-action@v2
         with:
           experimental: true
+          cache: false
 
       - name: Link plugin
         run: mise plugin link --force postgres-binary "$PWD"
@@ -59,6 +74,7 @@ jobs:
         run: |
           eval "$(mise activate bash)"
           mise use postgres-binary:postgres@${{ matrix.pg_version }}
+          eval "$(mise activate bash)"
           echo "PGDATA=$PGDATA"
           echo "PGHOME=$PGHOME"
           [ -d "$PGDATA" ] && echo "PGDATA directory exists" || exit 1
@@ -68,6 +84,7 @@ jobs:
         run: |
           eval "$(mise activate bash)"
           mise use postgres-binary:postgres@${{ matrix.pg_version }}
+          eval "$(mise activate bash)"
           pg_ctl start -D "$PGDATA" -l /tmp/pg.log -w
           psql -c "SELECT version();" postgres
           psql -c "CREATE TABLE test_table (id SERIAL PRIMARY KEY, name TEXT);" postgres
@@ -78,6 +95,7 @@ jobs:
   test-docker:
     name: Test Docker (${{ matrix.target }})
     needs: lint
+    timeout-minutes: 20
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -101,13 +119,16 @@ jobs:
   test-windows:
     name: Test (Windows)
     needs: lint
+    timeout-minutes: 30
     runs-on: windows-latest
     continue-on-error: true
     steps:
       - uses: actions/checkout@v4
+      # Disable cache to prevent stale installations from interfering with tests
       - uses: jdx/mise-action@v2
         with:
           experimental: true
+          cache: false
 
       - name: Link plugin
         shell: bash
