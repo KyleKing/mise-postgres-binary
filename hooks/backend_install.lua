@@ -101,11 +101,12 @@ local function download_and_verify_postgresql(version, platform, install_path)
     local os_type = RUNTIME.osType:lower()
     local checksum_cmd
     if os_type == "windows" then
-        -- Windows: Use CertUtil and extract only the 64-character SHA256 hash line
-        -- Output format: "SHA256 hash of file:\n<hash>\nCertUtil: -hashfile command completed successfully."
-        -- The regex matches exactly 64 hexadecimal characters (SHA256 hash length)
-        checksum_cmd =
-            string.format('certutil -hashfile "%s" SHA256 | findstr /r "^[0-9a-fA-F]\\{64\\}$"', temp_archive)
+        -- Windows: Use PowerShell Get-FileHash which works reliably in Git Bash
+        -- Returns only the lowercase hash string
+        checksum_cmd = string.format(
+            "powershell -NoProfile -Command \"(Get-FileHash -Path '%s' -Algorithm SHA256).Hash.ToLower()\"",
+            temp_archive
+        )
     else
         -- Unix: Use sha256sum or shasum
         checksum_cmd = string.format(
