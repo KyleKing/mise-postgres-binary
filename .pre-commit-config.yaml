@@ -1,0 +1,39 @@
+---
+# pre-commit configuration for mise-postgres-binary
+# Install: pre-commit install
+# Run manually: pre-commit run --all-files
+# See https://pre-commit.com for more information
+
+default_install_hook_types: ["pre-commit", "pre-push"]
+
+exclude: .luarocks/|luacov.*|lazy-lock\.json
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-added-large-files
+      - id: check-executables-have-shebangs
+      - id: check-json
+      - id: check-merge-conflict
+      - id: check-symlinks
+      - id: check-toml
+      - id: check-yaml
+      - id: end-of-file-fixer
+      - id: mixed-line-ending
+        args: [--fix=auto]
+      - id: trailing-whitespace
+
+  - repo: https://github.com/JohnnyMorganz/StyLua
+    rev: v2.3.1
+    hooks:
+      - id: stylua-system
+
+  - repo: local
+    hooks:
+      - id: selene
+        name: Selene
+        description: Lua linter (install via mise or homebrew)
+        entry: selene
+        language: system
+        types: [lua]

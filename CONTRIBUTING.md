@@ -41,7 +41,7 @@ mise-postgres-binary/
 
 ```bash
 mise run format              # Format Lua code with stylua
-mise run lint                # Run all linters (luacheck, stylua, actionlint)
+mise run lint                # Run all linters (selene, stylua, actionlint)
 mise run test                # Quick test (link plugin, list versions)
 mise run test-install        # Full test with database operations
 mise run test-docker         # Run Docker-based tests

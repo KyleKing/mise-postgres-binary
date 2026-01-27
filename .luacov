@@ -1,0 +1,26 @@
+-- LuaCov configuration
+-- See: https://lunarmodules.github.io/luacov/
+
+-- Patterns for files to include in coverage
+include = {
+    "hooks/",
+    "metadata.lua",
+}
+
+-- Patterns for files to exclude from coverage
+exclude = {
+    ".luarocks/",
+    "spec/",
+}
+
+-- Statistics file path
+statsfile = "luacov.stats.out"
+
+-- Report file path
+reportfile = "luacov.report.out"
+
+-- Run reporter on completion
+runreport = true
+
+-- Delete stats file after reporting
+deletestats = false

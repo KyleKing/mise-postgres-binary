@@ -1,0 +1,27 @@
+---
+# Busted testing framework standard library for Selene
+base: lua51
+
+globals:
+  describe:
+    any: true
+  context:
+    any: true
+  it:
+    any: true
+  pending:
+    any: true
+  setup:
+    any: true
+  teardown:
+    any: true
+  before_each:
+    any: true
+  after_each:
+    any: true
+  spy:
+    any: true
+  stub:
+    any: true
+  mock:
+    any: true

@@ -8,12 +8,12 @@ local linters = new Mapping<String, Step> {
     ["actionlint"] = (Builtins.actionlint) {
         glob = ".github/workflows/*.{yml,yaml}"
     }
-    ["luacheck"] = (Builtins.luacheck) {
-        glob = "**/*.lua"
-        exclude = "**/.luarocks/**"
-    }
     ["ruff"] = (Builtins.ruff) {
         glob = "**/*.py"
+    }
+    ["selene"] = (Builtins.selene) {
+        glob = "**/*.lua"
+        exclude = "**/.luarocks/**"
     }
     ["stylua"] = (Builtins.stylua) {
         glob = "**/*.lua"

@@ -1,0 +1,39 @@
+{
+  "$schema": "https://raw.githubusercontent.com/LuaLS/vscode-lua/master/setting/schema.json",
+  "runtime": {
+    "version": "Lua 5.1",
+    "path": [
+      "?.lua",
+      "?/init.lua"
+    ]
+  },
+  "workspace": {
+    "library": [
+      "hooks/",
+      "metadata.lua"
+    ],
+    "ignoreDir": [
+      ".luarocks",
+      ".git"
+    ]
+  },
+  "diagnostics": {
+    "globals": [
+      "PLUGIN",
+      "RUNTIME"
+    ],
+    "disable": [
+      "lowercase-global"
+    ]
+  },
+  "format": {
+    "enable": false
+  },
+  "hint": {
+    "enable": true,
+    "setType": true
+  },
+  "type": {
+    "castNumberToInteger": true
+  }
+}

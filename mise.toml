@@ -9,16 +9,18 @@ actionlint = "latest"
 hk = "latest"
 pkl = "latest"
 ruff = "latest"
+"cargo:selene" = "latest"
 stylua = "latest"
 uv = "latest"
 
 [tasks.setup]
-description = "Install development dependencies (luacheck)"
+description = "Install development dependencies (busted, luacov)"
 run = '''
 #!/usr/bin/env bash
 set -euo pipefail
-echo "Installing luacheck via luarocks..."
-luarocks install --tree .luarocks luacheck
+echo "Installing Lua development dependencies via luarocks..."
+luarocks install --tree .luarocks busted
+luarocks install --tree .luarocks luacov
 echo "Setup complete!"
 '''
 
@@ -27,15 +29,37 @@ description = "Format Lua code with stylua"
 run = "stylua metadata.lua hooks/"
 
 [tasks.lint]
-description = "Run all linters (luacheck, stylua, actionlint)"
-depends = ["setup"]
+description = "Run all linters (selene, stylua, actionlint)"
 run = "hk run check --all"
 
 [tasks.ci]
 description = "Run CI pipeline (lint + test)"
-depends = ["lint", "test"]
+depends = ["lint", "test", "test-integration"]
 
 [tasks.test]
+description = "Run unit tests with Busted"
+depends = ["setup"]
+run = '''
+#!/usr/bin/env bash
+set -euo pipefail
+echo "Running unit tests with Busted..."
+.luarocks/bin/busted
+'''
+
+[tasks.coverage]
+description = "Generate coverage report with LuaCov"
+depends = ["test"]
+run = '''
+#!/usr/bin/env bash
+set -euo pipefail
+echo "Generating coverage report..."
+.luarocks/bin/luacov
+echo ""
+echo "Coverage summary:"
+grep -A 100 "^Summary" luacov.report.out | head -20
+'''
+
+[tasks.test-integration]
 description = "Test the backend plugin (link and list versions)"
 run = '''
 #!/usr/bin/env bash

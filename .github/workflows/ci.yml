@@ -27,6 +27,17 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y lua5.4 liblua5.4-dev luarocks
+      - name: Install Selene
+        run: |
+          wget -qO- https://github.com/Kampfkarren/selene/releases/latest/download/selene-linux-x86_64.zip | sudo busybox unzip -d /usr/local/bin -
+          sudo chmod +x /usr/local/bin/selene
+      # Cache LuaRocks dependencies
+      - uses: actions/cache@v4
+        with:
+          path: .luarocks
+          key: luarocks-${{ runner.os }}-${{ hashFiles('mise.toml') }}
+          restore-keys: |
+            luarocks-${{ runner.os }}-
       # Disable cache to prevent stale installations from interfering with tests
       - uses: jdx/mise-action@v2
         with:
@@ -34,6 +45,8 @@ jobs:
           cache: false
       - name: Run linters
         run: mise run lint
+      - name: Run unit tests
+        run: mise run test
 
   test:
     name: Test (${{ matrix.os }}, PG ${{ matrix.pg_version }})

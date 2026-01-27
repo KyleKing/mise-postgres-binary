@@ -1,0 +1,14 @@
+return {
+    _all = {
+        coverage = true,
+        verbose = true,
+        ROOT = {"spec/"},
+        pattern = "_spec%.lua$",
+        exclude = {".luarocks/"},
+        -- LuaCov configuration
+        ["coverage.modules"] = {
+            "hooks/",
+            "metadata",
+        },
+    }
+}

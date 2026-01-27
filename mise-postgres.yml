@@ -1,0 +1,13 @@
+---
+# Custom Selene standard library for mise/vfox plugins
+# See: https://kampfkarren.github.io/selene/usage/std.html
+base: lua51
+
+globals:
+  # Plugin object for hook methods (mise backend API)
+  PLUGIN:
+    any: true
+
+  # Platform information (osType, archType)
+  RUNTIME:
+    any: true

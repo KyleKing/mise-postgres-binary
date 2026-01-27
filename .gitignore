@@ -10,6 +10,9 @@ installs/
 # LuaRocks local dependencies
 .luarocks/
 
+# LuaCov coverage files
+luacov.*.out
+
 # Test data directories
 postgres-data/
 test-data/
