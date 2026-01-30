@@ -101,12 +101,12 @@ local function download_and_verify_postgresql(version, platform, install_path)
     local os_type = RUNTIME.osType:lower()
     local checksum_cmd
     if os_type == "windows" then
-        -- Windows: Use PowerShell Get-FileHash which works reliably in Git Bash
-        -- Returns only the lowercase hash string
-        checksum_cmd = string.format(
-            "powershell -NoProfile -Command \"(Get-FileHash -Path '%s' -Algorithm SHA256).Hash.ToLower()\"",
-            temp_archive
-        )
+        -- Windows: Use CertUtil which works reliably in Git Bash
+        -- CertUtil outputs format:
+        -- SHA256 hash of <file>:
+        -- <hash>
+        -- CertUtil: -hashfile command completed successfully.
+        checksum_cmd = string.format('certutil -hashfile "%s" SHA256', temp_archive)
     else
         -- Unix: Use sha256sum or shasum
         checksum_cmd = string.format(
@@ -116,8 +116,20 @@ local function download_and_verify_postgresql(version, platform, install_path)
         )
     end
 
+    -- Execute command and parse output
+    local checksum_output = cmd.exec(checksum_cmd)
+    local computed_sha256
+    
+    if os_type == "windows" then
+        -- Parse CertUtil output - extract 64-character hex string
+        computed_sha256 = checksum_output:match("(%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x)")
+    else
+        -- Unix output is already the hash
+        computed_sha256 = checksum_output
+    end
+    
     -- Normalize both checksums: remove whitespace and convert to lowercase
-    local computed_sha256 = cmd.exec(checksum_cmd):gsub("%s+", ""):lower()
+    computed_sha256 = (computed_sha256 or ""):gsub("%s+", ""):lower()
     local expected_sha256_normalized = expected_sha256:gsub("%s+", ""):lower()
 
     if computed_sha256 ~= expected_sha256_normalized then
