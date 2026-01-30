@@ -45,6 +45,39 @@ local function normalize_path(path, os_type)
     return path
 end
 
+local function compute_sha256(filepath, os_type)
+    if os_type == "windows" then
+        local win_path = normalize_path(filepath, os_type)
+        local ps_cmd = string.format(
+            "powershell -NoProfile -Command \"(Get-FileHash -Algorithm SHA256 -LiteralPath '%s').Hash\"",
+            win_path
+        )
+        local ok, ps_output = pcall(cmd.exec, ps_cmd)
+        if ok then
+            local hash = parse_sha256_from_output(ps_output)
+            if hash then
+                return hash
+            end
+        end
+        local certutil_cmd = string.format('certutil -hashfile "%s" SHA256', win_path)
+        local ok2, certutil_output = pcall(cmd.exec, certutil_cmd)
+        if ok2 then
+            return parse_sha256_from_output(certutil_output)
+        end
+        return nil
+    end
+    local unix_cmd = string.format(
+        '(sha256sum "%s" 2>/dev/null || shasum -a 256 "%s" 2>/dev/null) | awk \'{print $1}\'',
+        filepath,
+        filepath
+    )
+    local ok, output = pcall(cmd.exec, unix_cmd)
+    if ok then
+        return parse_sha256_from_output(output)
+    end
+    return nil
+end
+
 local function is_musl_libc()
     local result = cmd.exec("ldd --version 2>&1 || true")
     if result and result:match("musl") then
@@ -105,24 +138,7 @@ local function download_and_verify_postgresql(version, platform, install_path)
     end
 
     local os_type = RUNTIME.osType:lower()
-    local checksum_cmd = string.format(
-        '(sha256sum "%s" 2>/dev/null || shasum -a 256 "%s" 2>/dev/null) | awk \'{print $1}\'',
-        temp_archive,
-        temp_archive
-    )
-
-    local checksum_output = cmd.exec(checksum_cmd)
-    local computed_sha256 = parse_sha256_from_output(checksum_output)
-
-    if not computed_sha256 and os_type == "windows" then
-        local win_path = normalize_path(temp_archive, os_type)
-        local certutil_cmd = string.format('certutil -hashfile "%s" SHA256', win_path)
-        local ok, certutil_output = pcall(cmd.exec, certutil_cmd)
-        if ok then
-            computed_sha256 = parse_sha256_from_output(certutil_output)
-        end
-    end
-
+    local computed_sha256 = compute_sha256(temp_archive, os_type)
     if not computed_sha256 then
         error("Failed to compute SHA256 checksum for: " .. temp_archive)
     end
@@ -139,9 +155,21 @@ local function download_and_verify_postgresql(version, platform, install_path)
     end
 
     local extracted_dir = string.format("%s/postgresql-%s-%s", install_path, version, platform)
-    local move_cmd =
-        string.format('sh -c \'cp -r "%s"/* "%s/" && rm -rf "%s"\'', extracted_dir, install_path, extracted_dir)
-    cmd.exec(move_cmd)
+    if os_type == "windows" then
+        local win_src = normalize_path(extracted_dir, os_type)
+        local win_dest = normalize_path(install_path, os_type)
+        local move_cmd = string.format(
+            "powershell -NoProfile -Command \"Copy-Item -Path '%s\\*' -Destination '%s' -Recurse -Force; Remove-Item -Path '%s' -Recurse -Force\"",
+            win_src,
+            win_dest,
+            win_src
+        )
+        cmd.exec(move_cmd)
+    else
+        local move_cmd =
+            string.format('sh -c \'cp -r "%s"/* "%s/" && rm -rf "%s"\'', extracted_dir, install_path, extracted_dir)
+        cmd.exec(move_cmd)
+    end
 
     os.remove(temp_archive)
 end
@@ -168,7 +196,9 @@ local function initialize_pgdata(install_path)
         error("initdb binary not found at: " .. initdb_bin)
     end
 
-    local initdb_cmd = string.format('"%s" -D "%s" --encoding=UTF8 --locale=C', initdb_bin, pgdata_dir)
+    local initdb_path = os_type == "windows" and normalize_path(initdb_bin, os_type) or initdb_bin
+    local pgdata_path = os_type == "windows" and normalize_path(pgdata_dir, os_type) or pgdata_dir
+    local initdb_cmd = string.format('"%s" -D "%s" --encoding=UTF8 --locale=C', initdb_path, pgdata_path)
     local result = cmd.exec(initdb_cmd)
 
     if result:match("error") or result:match("failed") then
@@ -201,7 +231,12 @@ function PLUGIN:BackendInstall(ctx)
     end
 
     if not file.exists(install_path) then
-        cmd.exec('mkdir -p "' .. install_path .. '"')
+        local os_type = RUNTIME.osType:lower()
+        if os_type == "windows" then
+            cmd.exec('mkdir "' .. normalize_path(install_path, os_type) .. '"')
+        else
+            cmd.exec('mkdir -p "' .. install_path .. '"')
+        end
     end
 
     local platform_target = get_rust_target()

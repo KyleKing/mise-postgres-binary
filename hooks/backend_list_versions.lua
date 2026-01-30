@@ -12,6 +12,7 @@ end
 local MIN_MAJOR_VERSION = 13
 local RELEASES_PER_PAGE = 100
 local MAX_PAGES = 2
+local REQUEST_TIMEOUT_MS = 30000 -- 30 seconds per API call
 
 --- Fetch releases from a single GitHub API page
 --- @param page number Page number to fetch
@@ -23,7 +24,10 @@ local function fetch_page(page)
         page
     )
 
-    local request_opts = { url = api_url }
+    local request_opts = {
+        url = api_url,
+        timeout = REQUEST_TIMEOUT_MS,
+    }
     local github_token = os.getenv("GITHUB_TOKEN") or os.getenv("GH_TOKEN")
     if github_token and github_token ~= "" then
         request_opts.headers = {
@@ -33,7 +37,17 @@ local function fetch_page(page)
 
     local resp, err = http.get(request_opts)
     if err then
-        error("Failed to fetch versions from GitHub API (page " .. page .. "): " .. tostring(err))
+        local err_str = tostring(err)
+        if err_str:match("timeout") or err_str:match("deadline") then
+            error(
+                string.format(
+                    "GitHub API request timed out after %dms (page %d). Check network connectivity.",
+                    REQUEST_TIMEOUT_MS,
+                    page
+                )
+            )
+        end
+        error("Failed to fetch versions from GitHub API (page " .. page .. "): " .. err_str)
     end
 
     if resp.status_code and resp.status_code ~= 200 then
@@ -73,6 +87,7 @@ end
 --- - mise caches this list, so this function is only called when cache expires or user runs `mise ls-remote`
 --- - Filtering by MIN_MAJOR_VERSION reduces noise from EOL PostgreSQL versions
 --- - GitHub API rate limit: 60 req/hour (unauthenticated), 5000/hour (authenticated)
+--- - Timeout protection: 30s per API call prevents hanging on slow connections
 ---
 --- @param ctx table Context containing tool information
 --- @return table Table with versions array
