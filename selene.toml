@@ -1,10 +1,7 @@
 std = "lua51+mise-postgres+busted"
 
 [config]
-# Defined at https://kampfkarren.github.io/selene/usage/configuration.html
 
 [lints]
-# Allow unused variables since hook functions have required signatures from mise API
 unused_variable = "allow"
-# Allow incorrect_standard_library_use for busted's assert extensions (luassert)
 incorrect_standard_library_use = "allow"

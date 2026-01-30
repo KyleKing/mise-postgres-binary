@@ -1,8 +1,4 @@
--- Tests for hooks/backend_list_versions.lua
---
--- Note: These hooks run within mise's Lua environment which provides special
--- modules (http, json) that aren't available in standard Lua. Full integration
--- testing is done via CI and test-integration task.
+local lib = require("lib")
 
 describe("backend_list_versions", function()
     it("should exist and be syntactically valid", function()
@@ -10,10 +6,14 @@ describe("backend_list_versions", function()
         assert.is_not_nil(f, "Failed to load backend_list_versions.lua: " .. tostring(err))
     end)
 
-    describe("parse_major_version", function()
-        -- Note: parse_major_version is a local function within mise's environment
-        -- and can't be tested directly without mocking mise modules
-        pending("would parse major version from semver string in mise environment")
+    describe("parse_major_version (via lib)", function()
+        it("parses major version from semver string", function()
+            assert.are.equal(15, lib.parse_major_version("15.10.0"))
+        end)
+
+        it("returns nil for non-version string", function()
+            assert.is_nil(lib.parse_major_version("latest"))
+        end)
     end)
 
     describe("PLUGIN:BackendListVersions", function()

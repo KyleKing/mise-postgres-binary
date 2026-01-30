@@ -8,6 +8,7 @@ return {
         -- LuaCov configuration
         ["coverage.modules"] = {
             "hooks/",
+            "lib",
             "metadata",
         },
     }
