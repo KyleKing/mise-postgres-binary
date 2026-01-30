@@ -117,11 +117,13 @@ local function download_and_verify_postgresql(version, platform, install_path)
     end
 
     -- Execute command and parse output
+    print("Executing checksum command: " .. checksum_cmd)
     local checksum_output = cmd.exec(checksum_cmd)
     local computed_sha256
     
     if os_type == "windows" then
         -- Parse CertUtil output - extract 64-character hex string
+        print("CertUtil output: " .. checksum_output)
         computed_sha256 = checksum_output:match("(%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x)")
     else
         -- Unix output is already the hash
