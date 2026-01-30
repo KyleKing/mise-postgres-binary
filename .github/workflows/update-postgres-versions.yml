@@ -11,9 +11,9 @@ jobs:
     name: Check for PostgreSQL updates
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: jdx/mise-action@v2
+      - uses: jdx/mise-action@v3
         with:
           experimental: true
 
@@ -27,7 +27,7 @@ jobs:
 
       - name: Create Pull Request
         if: steps.check.outputs.updated == 'true'
-        uses: peter-evans/create-pull-request@v7
+        uses: peter-evans/create-pull-request@v8
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           commit-message: "chore: update PostgreSQL versions to ${{ steps.check.outputs.new_versions }}"

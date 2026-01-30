@@ -22,20 +22,20 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Install Lua and LuaRocks
         run: |
           sudo apt-get update
           sudo apt-get install -y lua5.4 liblua5.4-dev luarocks
       # Cache LuaRocks dependencies
-      - uses: actions/cache@v4
+      - uses: actions/cache@v5
         with:
           path: .luarocks
           key: luarocks-${{ runner.os }}-${{ hashFiles('mise.toml') }}
           restore-keys: |
             luarocks-${{ runner.os }}-
       # Disable cache to prevent stale installations from interfering with tests
-      - uses: jdx/mise-action@v2
+      - uses: jdx/mise-action@v3
         with:
           experimental: true
           cache: false
@@ -55,9 +55,9 @@ jobs:
         pg_version: ["18.1.0", "14.20.0"]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       # Disable cache to prevent stale installations from interfering with tests
-      - uses: jdx/mise-action@v2
+      - uses: jdx/mise-action@v3
         with:
           experimental: true
           cache: false
@@ -111,13 +111,13 @@ jobs:
       matrix:
         target: [debian-pg14, alpine-pg14]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
       - name: Build ${{ matrix.target }}
-        uses: docker/bake-action@v5
+        uses: docker/bake-action@v6
         with:
           targets: ${{ matrix.target }}
           load: true
@@ -132,9 +132,9 @@ jobs:
     runs-on: windows-latest
     continue-on-error: true
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       # Disable cache to prevent stale installations from interfering with tests
-      - uses: jdx/mise-action@v2
+      - uses: jdx/mise-action@v3
         with:
           experimental: true
           cache: false
