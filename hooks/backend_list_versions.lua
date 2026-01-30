@@ -1,9 +1,13 @@
 local http = require("http")
 local json = require("json")
 
-local source = debug.getinfo(1, "S").source:sub(2)
-local hook_dir = source:match("(.*[/\\])") or ""
-local lib = dofile(hook_dir .. "../lib.lua")
+local function parse_major_version(version)
+    if not version then
+        return nil
+    end
+    local major = version:match("^(%d+)%.")
+    return major and tonumber(major) or nil
+end
 
 local MIN_MAJOR_VERSION = 13
 local RELEASES_PER_PAGE = 100
@@ -92,7 +96,7 @@ function PLUGIN:BackendListVersions(ctx)
         for _, release in ipairs(releases) do
             local version = release.tag_name
             if version then
-                local major = lib.parse_major_version(version)
+                local major = parse_major_version(version)
 
                 if major and major < oldest_major_seen then
                     oldest_major_seen = major

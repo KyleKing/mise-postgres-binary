@@ -3,9 +3,47 @@ local file = require("file")
 local http = require("http")
 local archiver = require("archiver")
 
-local source = debug.getinfo(1, "S").source:sub(2)
-local hook_dir = source:match("(.*[/\\])") or ""
-local lib = dofile(hook_dir .. "../lib.lua")
+local RUST_TARGETS = {
+    ["darwin-amd64"] = "x86_64-apple-darwin",
+    ["darwin-arm64"] = "aarch64-apple-darwin",
+    ["linux-amd64-gnu"] = "x86_64-unknown-linux-gnu",
+    ["linux-amd64-musl"] = "x86_64-unknown-linux-musl",
+    ["linux-arm64-gnu"] = "aarch64-unknown-linux-gnu",
+    ["linux-arm64-musl"] = "aarch64-unknown-linux-musl",
+    ["linux-386-gnu"] = "i686-unknown-linux-gnu",
+    ["linux-386-musl"] = "i686-unknown-linux-musl",
+    ["windows-amd64"] = "x86_64-pc-windows-msvc",
+}
+
+local function parse_sha256_from_output(output)
+    if not output then
+        return nil
+    end
+    for hex_sequence in output:gmatch("%x+") do
+        if #hex_sequence == 64 then
+            return hex_sequence:lower()
+        end
+    end
+    return nil
+end
+
+local function lookup_rust_target(os_type, arch_type, is_musl)
+    if os_type == "linux" then
+        local suffix = is_musl and "musl" or "gnu"
+        return RUST_TARGETS[os_type .. "-" .. arch_type .. "-" .. suffix]
+    end
+    return RUST_TARGETS[os_type .. "-" .. arch_type]
+end
+
+local function normalize_path(path, os_type)
+    if not path then
+        return nil
+    end
+    if os_type == "windows" then
+        return path:gsub("/", "\\")
+    end
+    return path
+end
 
 local function is_musl_libc()
     local result = cmd.exec("ldd --version 2>&1 || true")
@@ -23,7 +61,7 @@ local function get_rust_target()
     local arch_type = RUNTIME.archType
     local is_musl = os_type == "linux" and is_musl_libc() or false
 
-    local target = lib.get_rust_target(os_type, arch_type, is_musl)
+    local target = lookup_rust_target(os_type, arch_type, is_musl)
     if not target then
         error(
             string.format(
@@ -53,7 +91,7 @@ local function download_and_verify_postgresql(version, platform, install_path)
         error("Failed to download checksum file: " .. tostring(checksum_err))
     end
 
-    local expected_sha256 = lib.parse_sha256_from_output(checksum_resp.body)
+    local expected_sha256 = parse_sha256_from_output(checksum_resp.body)
     if not expected_sha256 then
         error("Invalid checksum format in file (expected 64-char SHA256): " .. checksum_resp.body)
     end
@@ -74,14 +112,14 @@ local function download_and_verify_postgresql(version, platform, install_path)
     )
 
     local checksum_output = cmd.exec(checksum_cmd)
-    local computed_sha256 = lib.parse_sha256_from_output(checksum_output)
+    local computed_sha256 = parse_sha256_from_output(checksum_output)
 
     if not computed_sha256 and os_type == "windows" then
-        local win_path = lib.normalize_path(temp_archive, os_type)
+        local win_path = normalize_path(temp_archive, os_type)
         local certutil_cmd = string.format('certutil -hashfile "%s" SHA256', win_path)
         local ok, certutil_output = pcall(cmd.exec, certutil_cmd)
         if ok then
-            computed_sha256 = lib.parse_sha256_from_output(certutil_output)
+            computed_sha256 = parse_sha256_from_output(certutil_output)
         end
     end
 
