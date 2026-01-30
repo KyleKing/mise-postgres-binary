@@ -114,11 +114,12 @@ local function download_and_verify_postgresql(version, platform, install_path)
     local checksum_output = cmd.exec(checksum_cmd)
     
     -- If Unix command failed on Windows, try CertUtil as fallback
-    -- Check if output is empty, contains errors, or doesn't look like a hash
+    -- Check if output is empty, contains errors, or doesn't look like a valid SHA256 hash
     local is_valid_unix_hash = checksum_output and checksum_output ~= "" and 
                                not checksum_output:match("command not found") and
                                not checksum_output:match("No such file") and
-                               checksum_output:match("^%x+") -- starts with hex chars
+                               checksum_output:match("^%x+$") and -- entire output is hex chars
+                               #checksum_output:gsub("%s+", "") == 64 -- exactly 64 hex chars after removing whitespace
     
     if os_type == "windows" and not is_valid_unix_hash then
         print("Unix checksum command failed or returned invalid output, trying CertUtil...")
@@ -134,14 +135,23 @@ local function download_and_verify_postgresql(version, platform, install_path)
     local computed_sha256
     
     -- Parse CertUtil output if needed (contains multi-line format)
-    if checksum_output:match("CertUtil") or checksum_output:match("SHA256 hash of") then
+    -- CertUtil output detection is case-insensitive to handle different locales
+    local output_lower = checksum_output:lower()
+    if output_lower:match("certutil") or output_lower:match("sha256 hash of") then
         print("Parsing CertUtil output: " .. checksum_output)
         -- CertUtil outputs format:
         -- SHA256 hash of <file>:
         -- <hash>
         -- CertUtil: -hashfile command completed successfully.
-        -- Extract 64-character hex string
-        computed_sha256 = checksum_output:match("(%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x)")
+        -- Extract first occurrence of exactly 64 hex characters
+        computed_sha256 = checksum_output:match("(%x+)")
+        -- Find all sequences of hex characters and take the first one that's 64 chars
+        for hex_sequence in checksum_output:gmatch("(%x+)") do
+            if #hex_sequence == 64 then
+                computed_sha256 = hex_sequence
+                break
+            end
+        end
         if not computed_sha256 then
             error("Failed to parse CertUtil output. Expected to find 64-character SHA256 hash. Output was: " .. checksum_output)
         end
