@@ -100,25 +100,26 @@ local function download_and_verify_postgresql(version, platform, install_path)
     -- Verify SHA256 checksum (cross-platform)
     local os_type = RUNTIME.osType:lower()
     local checksum_cmd
-    if os_type == "windows" then
-        -- Windows: Use CertUtil which works reliably in Git Bash
-        -- CertUtil outputs format:
-        -- SHA256 hash of <file>:
-        -- <hash>
-        -- CertUtil: -hashfile command completed successfully.
-        checksum_cmd = string.format('certutil -hashfile "%s" SHA256', temp_archive)
-    else
-        -- Unix: Use sha256sum or shasum
-        checksum_cmd = string.format(
-            '(sha256sum "%s" 2>/dev/null || shasum -a 256 "%s") | awk \'{print $1}\'',
-            temp_archive,
-            temp_archive
-        )
-    end
-
+    
+    -- Try Unix-style sha256sum first (works in Git Bash on Windows too)
+    -- This provides consistent behavior across platforms
+    checksum_cmd = string.format(
+        '(sha256sum "%s" 2>/dev/null || shasum -a 256 "%s" 2>/dev/null) | awk \'{print $1}\'',
+        temp_archive,
+        temp_archive
+    )
+    
     -- Execute command and parse output
     print("Executing checksum command: " .. checksum_cmd)
     local checksum_output = cmd.exec(checksum_cmd)
+    
+    -- If Unix command failed on Windows, try CertUtil as fallback
+    if os_type == "windows" and (not checksum_output or checksum_output == "" or checksum_output:match("command not found")) then
+        print("Unix checksum command failed, trying CertUtil...")
+        checksum_cmd = string.format('certutil -hashfile "%s" SHA256', temp_archive)
+        print("Executing fallback command: " .. checksum_cmd)
+        checksum_output = cmd.exec(checksum_cmd)
+    end
     
     if not checksum_output or checksum_output == "" then
         error("Failed to compute checksum - command returned empty output")
@@ -126,15 +127,20 @@ local function download_and_verify_postgresql(version, platform, install_path)
     
     local computed_sha256
     
-    if os_type == "windows" then
-        -- Parse CertUtil output - extract 64-character hex string
-        print("CertUtil output: " .. checksum_output)
+    -- Parse CertUtil output if needed (contains multi-line format)
+    if checksum_output:match("CertUtil") or checksum_output:match("SHA256 hash of") then
+        print("Parsing CertUtil output: " .. checksum_output)
+        -- CertUtil outputs format:
+        -- SHA256 hash of <file>:
+        -- <hash>
+        -- CertUtil: -hashfile command completed successfully.
+        -- Extract 64-character hex string
         computed_sha256 = checksum_output:match("(%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x)")
         if not computed_sha256 then
             error("Failed to parse CertUtil output. Expected to find 64-character SHA256 hash. Output was: " .. checksum_output)
         end
     else
-        -- Unix output is already the hash
+        -- Unix output is already just the hash
         computed_sha256 = checksum_output
     end
     
