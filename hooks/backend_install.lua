@@ -114,8 +114,14 @@ local function download_and_verify_postgresql(version, platform, install_path)
     local checksum_output = cmd.exec(checksum_cmd)
     
     -- If Unix command failed on Windows, try CertUtil as fallback
-    if os_type == "windows" and (not checksum_output or checksum_output == "" or checksum_output:match("command not found")) then
-        print("Unix checksum command failed, trying CertUtil...")
+    -- Check if output is empty, contains errors, or doesn't look like a hash
+    local is_valid_unix_hash = checksum_output and checksum_output ~= "" and 
+                               not checksum_output:match("command not found") and
+                               not checksum_output:match("No such file") and
+                               checksum_output:match("^%x+") -- starts with hex chars
+    
+    if os_type == "windows" and not is_valid_unix_hash then
+        print("Unix checksum command failed or returned invalid output, trying CertUtil...")
         checksum_cmd = string.format('certutil -hashfile "%s" SHA256', temp_archive)
         print("Executing fallback command: " .. checksum_cmd)
         checksum_output = cmd.exec(checksum_cmd)
@@ -140,12 +146,15 @@ local function download_and_verify_postgresql(version, platform, install_path)
             error("Failed to parse CertUtil output. Expected to find 64-character SHA256 hash. Output was: " .. checksum_output)
         end
     else
-        -- Unix output is already just the hash
-        computed_sha256 = checksum_output
+        -- Unix output should be just the hash - validate it
+        computed_sha256 = checksum_output:match("^(%x+)")
+        if not computed_sha256 or #computed_sha256 ~= 64 then
+            error("Failed to parse Unix checksum output. Expected 64-character SHA256 hash, got: " .. checksum_output)
+        end
     end
     
     -- Normalize both checksums: remove whitespace and convert to lowercase
-    computed_sha256 = (computed_sha256 or ""):gsub("%s+", ""):lower()
+    computed_sha256 = computed_sha256:gsub("%s+", ""):lower()
     local expected_sha256_normalized = expected_sha256:gsub("%s+", ""):lower()
 
     if computed_sha256 ~= expected_sha256_normalized then
