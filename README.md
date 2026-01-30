@@ -55,6 +55,16 @@ The plugin automatically sets up:
 
 The plugin automatically runs `initdb` on first installation, creating a database cluster in `$PGDATA`.
 
+### Version Caching
+
+mise caches available version lists (~1 hour default TTL). The plugin adds an
+ETag-based HTTP cache layer (12-hour TTL) at XDG-compliant paths to further
+reduce GitHub API calls.
+
+- Override TTL: `export MISE_POSTGRES_BINARY_CACHE_TTL=3600` (seconds; 0 disables)
+- Clear mise cache: `mise cache clear`
+- CI: `jdx/mise-action` automatically provides `GITHUB_TOKEN`
+
 ## Supported Platforms
 
 Binaries are sourced from [theseus-rs/postgresql-binaries](https://github.com/theseus-rs/postgresql-binaries):

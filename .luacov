@@ -3,6 +3,7 @@
 
 -- Patterns for files to include in coverage
 include = {
+    "github_cache",
     "hooks/",
     "metadata.lua",
 }

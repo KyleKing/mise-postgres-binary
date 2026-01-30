@@ -20,13 +20,14 @@ run = '''
 set -euo pipefail
 echo "Installing Lua development dependencies via luarocks..."
 luarocks install --tree .luarocks busted
+luarocks install --tree .luarocks dkjson
 luarocks install --tree .luarocks luacov
 echo "Setup complete!"
 '''
 
 [tasks.format]
 description = "Format Lua code with stylua"
-run = "stylua lib.lua metadata.lua hooks/"
+run = "stylua github_cache.lua lib.lua metadata.lua hooks/"
 
 [tasks.lint]
 description = "Run all linters (selene, stylua, actionlint)"

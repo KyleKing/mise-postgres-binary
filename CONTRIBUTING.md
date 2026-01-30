@@ -82,15 +82,37 @@ psql -c "SELECT version();" postgres
 pg_ctl stop -D "$PGDATA" -m fast
 ```
 
+### GitHub Token for Development
+
+When developing the plugin, you may frequently clear caches and list versions, which can hit GitHub API rate limits (60 requests/hour unauthenticated).
+
+**Set up a token:**
+
+1. Create a GitHub Personal Access Token:
+   - Go to https://github.com/settings/tokens
+   - Click "Generate new token (classic)"
+   - No scopes needed (public repo access only)
+   - Copy the token
+
+2. Export in your shell:
+   ```bash
+   export GITHUB_TOKEN=$(gh auth token)  # If using gh CLI
+   # Or manually:
+   export GITHUB_TOKEN="ghp_your_token_here"
+   # Add to ~/.bashrc or ~/.zshrc for persistence
+   ```
+
+3. Verify it works:
+   ```bash
+   mise cache clear
+   mise ls-remote postgres-binary:postgres | head -5
+   ```
+
+**Note:** End-users rarely need this token because mise caches version lists. This is primarily for plugin development, CI, and Docker tests.
+
 ### Docker Testing
 
-Docker tests verify the plugin works on different Linux distributions.
-
-**Important:** Set `GITHUB_TOKEN` to avoid API rate limits (60 requests/hour without auth, 5000 with auth):
-
-```bash
-export GITHUB_TOKEN=$(gh auth token)
-```
+Docker tests verify the plugin works on different Linux distributions. Set `GITHUB_TOKEN` as shown above to avoid rate limits:
 
 ```bash
 # Build and test all targets
@@ -194,10 +216,15 @@ docker buildx prune -f
 docker buildx bake --no-cache debian-pg14
 ```
 
+## Commits and Versioning
+
+Follow [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `docs:`, etc.).
+Commits to `main` trigger automatic version bumping via [commitizen](https://commitizen-tools.github.io/commitizen/),
+updating `metadata.lua`, `CHANGELOG.md`, and creating GitHub releases.
+
 ## How to Contribute
 
 1. Fork the repository
-2. Create a feature branch
-3. Run `mise run lint` before committing
-4. Run `mise run test-install` to verify changes
-5. Submit a pull request
+2. Create a feature branch: `git checkout -b feat/your-feature`
+3. Run `mise run lint` and `mise run test-install` before submitting
+4. Submit a pull request

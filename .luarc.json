@@ -9,6 +9,7 @@
   },
   "workspace": {
     "library": [
+      "github_cache.lua",
       "hooks/",
       "metadata.lua"
     ],
