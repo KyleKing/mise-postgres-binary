@@ -100,24 +100,75 @@ local function download_and_verify_postgresql(version, platform, install_path)
     -- Verify SHA256 checksum (cross-platform)
     local os_type = RUNTIME.osType:lower()
     local checksum_cmd
-    if os_type == "windows" then
-        -- Windows: Use PowerShell Get-FileHash which works reliably in Git Bash
-        -- Returns only the lowercase hash string
-        checksum_cmd = string.format(
-            "powershell -NoProfile -Command \"(Get-FileHash -Path '%s' -Algorithm SHA256).Hash.ToLower()\"",
-            temp_archive
-        )
+
+    -- Try Unix-style sha256sum first (works in Git Bash on Windows too)
+    -- This provides consistent behavior across platforms
+    checksum_cmd = string.format(
+        '(sha256sum "%s" 2>/dev/null || shasum -a 256 "%s" 2>/dev/null) | awk \'{print $1}\'',
+        temp_archive,
+        temp_archive
+    )
+
+    -- Execute command and parse output
+    print("Executing checksum command: " .. checksum_cmd)
+    local checksum_output = cmd.exec(checksum_cmd)
+
+    -- If Unix command failed on Windows, try CertUtil as fallback
+    -- Check if output is empty, contains errors, or doesn't look like a valid SHA256 hash
+    local is_valid_unix_hash = checksum_output
+        and checksum_output ~= ""
+        and not checksum_output:match("command not found")
+        and not checksum_output:match("No such file")
+        and checksum_output:match("^%x+$") -- entire output is hex chars
+        and #checksum_output:gsub("%s+", "") == 64 -- exactly 64 hex chars after removing whitespace
+
+    if os_type == "windows" and not is_valid_unix_hash then
+        print("Unix checksum command failed or returned invalid output, trying CertUtil...")
+        checksum_cmd = string.format('certutil -hashfile "%s" SHA256', temp_archive)
+        print("Executing fallback command: " .. checksum_cmd)
+        checksum_output = cmd.exec(checksum_cmd)
+    end
+
+    if not checksum_output or checksum_output == "" then
+        error("Failed to compute checksum - command returned empty output")
+    end
+
+    local computed_sha256
+
+    -- Parse CertUtil output if needed (contains multi-line format)
+    -- CertUtil output detection is case-insensitive to handle different locales
+    local output_lower = checksum_output:lower()
+    if output_lower:match("certutil") or output_lower:match("sha256 hash of") then
+        print("Parsing CertUtil output: " .. checksum_output)
+        -- CertUtil outputs format:
+        -- SHA256 hash of <file>:
+        -- <hash>
+        -- CertUtil: -hashfile command completed successfully.
+        -- Extract first occurrence of exactly 64 hex characters
+        computed_sha256 = checksum_output:match("(%x+)")
+        -- Find all sequences of hex characters and take the first one that's 64 chars
+        for hex_sequence in checksum_output:gmatch("(%x+)") do
+            if #hex_sequence == 64 then
+                computed_sha256 = hex_sequence
+                break
+            end
+        end
+        if not computed_sha256 then
+            error(
+                "Failed to parse CertUtil output. Expected to find 64-character SHA256 hash. Output was: "
+                    .. checksum_output
+            )
+        end
     else
-        -- Unix: Use sha256sum or shasum
-        checksum_cmd = string.format(
-            '(sha256sum "%s" 2>/dev/null || shasum -a 256 "%s") | awk \'{print $1}\'',
-            temp_archive,
-            temp_archive
-        )
+        -- Unix output should be just the hash - validate it
+        computed_sha256 = checksum_output:match("^(%x+)")
+        if not computed_sha256 or #computed_sha256 ~= 64 then
+            error("Failed to parse Unix checksum output. Expected 64-character SHA256 hash, got: " .. checksum_output)
+        end
     end
 
     -- Normalize both checksums: remove whitespace and convert to lowercase
-    local computed_sha256 = cmd.exec(checksum_cmd):gsub("%s+", ""):lower()
+    computed_sha256 = computed_sha256:gsub("%s+", ""):lower()
     local expected_sha256_normalized = expected_sha256:gsub("%s+", ""):lower()
 
     if computed_sha256 ~= expected_sha256_normalized then
