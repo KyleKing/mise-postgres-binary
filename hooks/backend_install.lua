@@ -60,26 +60,28 @@ local function compute_sha256(filepath, os_type)
         certutil = { attempted = false, success = false, error = nil, output = nil, command = nil },
     }
 
-    local unix_cmd = string.format(
-        '(sha256sum "%s" 2>/dev/null || shasum -a 256 "%s" 2>/dev/null) | awk \'{print $1}\'',
-        filepath,
-        filepath
-    )
-    diagnostics.unix.attempted = true
-    diagnostics.unix.command = unix_cmd
+    if os_type ~= "windows" then
+        local unix_cmd = string.format(
+            '(sha256sum "%s" 2>/dev/null || shasum -a 256 "%s" 2>/dev/null) | awk \'{print $1}\'',
+            filepath,
+            filepath
+        )
+        diagnostics.unix.attempted = true
+        diagnostics.unix.command = unix_cmd
 
-    local output = cmd.exec(unix_cmd)
-    if output and output ~= "" then
-        diagnostics.unix.output = output
-        local hash = parse_sha256_from_output(output)
-        if hash then
-            diagnostics.unix.success = true
-            return hash
+        local output = cmd.exec(unix_cmd)
+        if output and output ~= "" then
+            diagnostics.unix.output = output
+            local hash = parse_sha256_from_output(output)
+            if hash then
+                diagnostics.unix.success = true
+                return hash
+            else
+                diagnostics.unix.error = "Command succeeded but output did not contain valid SHA256 hash"
+            end
         else
-            diagnostics.unix.error = "Command succeeded but output did not contain valid SHA256 hash"
+            diagnostics.unix.error = "Command returned empty output"
         end
-    else
-        diagnostics.unix.error = "Command returned empty output"
     end
 
     if os_type == "windows" then
