@@ -233,12 +233,15 @@ end
 --- @param platform string Rust target triple
 --- @param install_path string Destination directory
 local function download_and_verify_postgresql(version, platform, install_path)
+    local os_type = RUNTIME.osType:lower()
     local base_url = string.format("https://github.com/theseus-rs/postgresql-binaries/releases/download/%s", version)
 
     local filename = string.format("postgresql-%s-%s.tar.gz", version, platform)
     local download_url = base_url .. "/" .. filename
     local checksum_url = download_url .. ".sha256"
-    local temp_archive = install_path .. "/" .. filename
+
+    local path_sep = os_type == "windows" and "\\" or "/"
+    local temp_archive = install_path .. path_sep .. filename
 
     print(string.format("Downloading checksum from: %s", checksum_url))
     local checksum_resp, checksum_err = http.get({ url = checksum_url })
@@ -302,7 +305,6 @@ local function download_and_verify_postgresql(version, platform, install_path)
     print(string.format("Downloaded archive: %s", temp_archive))
     print("Verifying checksum...")
 
-    local os_type = RUNTIME.osType:lower()
     local computed_sha256 = compute_sha256(temp_archive, os_type)
 
     if computed_sha256 then
@@ -346,7 +348,7 @@ local function download_and_verify_postgresql(version, platform, install_path)
         error(table.concat(error_msg, "\n"))
     end
 
-    local extracted_dir = string.format("%s/postgresql-%s-%s", install_path, version, platform)
+    local extracted_dir = install_path .. path_sep .. string.format("postgresql-%s-%s", version, platform)
     if not file.exists(extracted_dir) then
         local error_msg = {
             "Extraction succeeded but expected directory not found.",
@@ -403,7 +405,9 @@ end
 --- @param install_path string PostgreSQL installation directory
 local function initialize_pgdata(install_path)
     local os_type = RUNTIME.osType:lower()
-    local pgdata_dir = install_path .. "/data"
+    local path_sep = os_type == "windows" and "\\" or "/"
+
+    local pgdata_dir = install_path .. path_sep .. "data"
 
     if file.exists(pgdata_dir) then
         print("PGDATA directory already exists, skipping initdb")
@@ -412,7 +416,7 @@ local function initialize_pgdata(install_path)
 
     print(string.format("Initializing PostgreSQL data directory at: %s", pgdata_dir))
 
-    local initdb_bin = install_path .. "/bin/initdb"
+    local initdb_bin = install_path .. path_sep .. "bin" .. path_sep .. "initdb"
     if os_type == "windows" then
         initdb_bin = initdb_bin .. ".exe"
     end
