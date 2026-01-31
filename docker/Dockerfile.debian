@@ -25,7 +25,14 @@ WORKDIR /home/postgres
 RUN curl https://mise.run | sh
 ENV PATH="/home/postgres/.local/bin:$PATH"
 
-# Create plugin directory and copy plugin files
+# Set POSTGRES_VERSION as ENV for test script
+ENV POSTGRES_VERSION=${POSTGRES_VERSION}
+
+# Copy test script early (better caching - only invalidates when script changes)
+COPY --chown=postgres:postgres docker/test-debian.sh /home/postgres/test.sh
+RUN chmod +x /home/postgres/test.sh
+
+# Create plugin directory and copy plugin files (invalidates on code changes)
 RUN mkdir -p /home/postgres/plugin
 WORKDIR /home/postgres/plugin
 COPY --chown=postgres:postgres . .
@@ -36,40 +43,5 @@ RUN --mount=type=secret,id=github_token,uid=1000 \
     && mise trust \
     && mise settings set experimental true \
     && mise plugin link --force postgres-binary /home/postgres/plugin
-
-# Test script
-RUN --mount=type=secret,id=github_token,uid=1000 \
-    printf '#!/bin/bash\n\
-set -euo pipefail\n\
-export GITHUB_TOKEN=$(cat /run/secrets/github_token 2>/dev/null || true)\n\
-echo "=== Testing mise-postgres-binary on Debian (glibc) ==="\n\
-echo "Platform: $(uname -s) $(uname -m)"\n\
-echo ""\n\
-echo "Step 1: List available versions"\n\
-mise ls-remote postgres-binary:postgres | head -5\n\
-echo ""\n\
-echo "Step 2: Install PostgreSQL %s"\n\
-mise install postgres-binary:postgres@%s\n\
-echo ""\n\
-echo "Step 3: Verify installation"\n\
-mise exec postgres-binary:postgres@%s -- postgres --version\n\
-mise exec postgres-binary:postgres@%s -- psql --version\n\
-mise exec postgres-binary:postgres@%s -- pg_dump --version\n\
-echo ""\n\
-echo "Step 4: Check environment"\n\
-mise use postgres-binary:postgres@%s\n\
-eval "$(mise activate bash)"\n\
-echo "PGDATA=$PGDATA"\n\
-[ -d "$PGDATA" ] && echo "PGDATA directory exists" || exit 1\n\
-[ -f "$PGDATA/PG_VERSION" ] && echo "Database initialized (PG_VERSION present)" || exit 1\n\
-echo ""\n\
-echo "Step 5: Start PostgreSQL briefly"\n\
-pg_ctl start -D "$PGDATA" -l /tmp/pg.log -w\n\
-sleep 2\n\
-psql -c "SELECT version();" postgres\n\
-pg_ctl stop -D "$PGDATA" -m fast\n\
-echo ""\n\
-echo "=== All tests passed ==="\n' "${POSTGRES_VERSION}" "${POSTGRES_VERSION}" "${POSTGRES_VERSION}" "${POSTGRES_VERSION}" "${POSTGRES_VERSION}" "${POSTGRES_VERSION}" > /home/postgres/test.sh \
-    && chmod +x /home/postgres/test.sh
 
 CMD ["/home/postgres/test.sh"]
