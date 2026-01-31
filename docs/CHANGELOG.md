@@ -1,25 +1,64 @@
-# Changelog
+## Unreleased
 
-All notable changes to this project will be documented in this file.
+### Fix
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+- check for OS type earlier and use OS Separator
 
-## [Unreleased]
+### Refactor
 
-## [1.0.0] - 2026-01-30
+- nest and rename .versions.json and de-duplicate changelogs
 
-### Added
-- Initial release of mise-postgres-binary plugin
-- Automatic environment variable setup (PGDATA, PATH, etc.)
-- Automatic PGDATA initialization
-- Cross-platform support (macOS, Linux, Windows)
-- Dynamic version discovery via GitHub API with pagination and early exit
-- Fast PostgreSQL installations from pre-built binaries (theseus-rs/postgresql-binaries)
-- GitHub API rate limit handling with token support
-- Platform detection (glibc/musl on Linux)
-- SHA256 checksum verification
-- Support for PostgreSQL 13+ versions
+## 0.1.3 (2026-01-31)
 
-[Unreleased]: https://github.com/kyleking/mise-postgres-binary/compare/1.0.0...HEAD
-[1.0.0]: https://github.com/kyleking/mise-postgres-binary/releases/tag/1.0.0
+## 0.1.2 (2026-01-31)
+
+### Fix
+
+- skip mac binaries on Windows because can't use pcall
+- better utilize mise with test-install
+
+### Refactor
+
+- extract inner branch code
+
+## 0.1.1 (2026-01-31)
+
+### Fix
+
+- don't wrap with pcall
+- correct module discovery
+
+## 0.1.0 (2026-01-31)
+
+### Feat
+
+- improve error handling
+- support overriding the checksum
+
+### Fix
+
+- leverage fallbacks for Windows
+
+### Refactor
+
+- nest top-level files when possible for better organization
+
+## 0.0.0 (2026-01-30)
+
+### Feat
+
+- improve error output on install
+- implement version caching
+- improve rate-limiting handling
+- cleanup and improvements
+- Initial mise-postgres-binary
+
+### Fix
+
+- add plugin versioning
+- improve hash validation and coverage
+- Windows compatibility and CI (#1)
+
+### Refactor
+
+- Windows-specific fixes

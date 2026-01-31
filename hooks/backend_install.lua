@@ -49,14 +49,7 @@ local function try_checksum_cmd(command, diagnostics, method, os_type)
     diagnostics[method].attempted = true
     diagnostics[method].command = command
 
-    local wrapped_cmd
-    if os_type == "windows" then
-        wrapped_cmd = string.format('cmd.exe /c "%s 2>nul" || echo.', command)
-    else
-        wrapped_cmd = command
-    end
-
-    local output = cmd.exec(wrapped_cmd)
+    local output = cmd.exec(command)
     if output and output ~= "" then
         diagnostics[method].output = output
         local hash = parse_sha256_from_output(output)
@@ -156,18 +149,16 @@ local function compute_sha256(filepath, os_type)
         })
     end
 
-    local forward_path = filepath:gsub("\\", "/")
-
     local ps_cmd = string.format(
         "powershell.exe -NoProfile -ExecutionPolicy Bypass -Command \"(Get-FileHash -Algorithm SHA256 -Path '%s').Hash\"",
-        forward_path
+        filepath
     )
     local ps_hash = try_checksum_cmd(ps_cmd, diagnostics, "powershell", os_type)
     if ps_hash then
         return ps_hash
     end
 
-    local certutil_cmd = string.format('certutil.exe -hashfile "%s" SHA256', forward_path)
+    local certutil_cmd = string.format('certutil.exe -hashfile "%s" SHA256', filepath)
     local certutil_hash = try_checksum_cmd(certutil_cmd, diagnostics, "certutil", os_type)
     if certutil_hash then
         return certutil_hash
