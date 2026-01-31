@@ -1,7 +1,7 @@
 PLUGIN = {
     name = "mise-postgres-binary",
     author = "kyleking",
-    version = "0.0.0",
+    version = "0.1.0",
     license = "MIT",
     description = "mise backend plugin for PostgreSQL binaries from theseus-rs/postgresql-binaries",
     source_url = "https://github.com/kyleking/mise-postgres-binary",
