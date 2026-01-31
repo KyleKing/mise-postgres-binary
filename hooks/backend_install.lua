@@ -45,40 +45,45 @@ local function normalize_path(path, os_type)
     return path
 end
 
+--- Computes SHA256 checksum using platform-appropriate tools
+--- @param filepath string Path to file (forward or backward slashes)
+--- @param os_type string Operating system type from RUNTIME.osType
+--- @return string SHA256 hash (64-char lowercase hex string)
+---
+--- System Dependencies:
+---
+--- Unix/Linux/macOS:
+---   - sha256sum (GNU coreutils) OR shasum (macOS/BSD)
+---   - awk (standard on all Unix systems)
+---
+--- Windows:
+---   Primary: Unix tools via Git Bash (GitHub Actions, MSYS2, Cygwin)
+---     - sha256sum, awk (provided by Git for Windows)
+---   Fallback 1: PowerShell (Windows 7+, invoke via cmd.exe from Git Bash)
+---     - Get-FileHash cmdlet (PowerShell 4.0+)
+---   Fallback 2: certutil (Windows Vista+, invoke via cmd.exe)
+---     - certutil.exe -hashfile
+---
+--- Platform Strategy:
+---   1. Try Unix tools first (sha256sum/shasum + awk)
+---      - Works on native Unix/Linux/macOS
+---      - Also works on Windows with Git Bash (most CI environments)
+---   2. On Windows if Unix tools fail:
+---      - Try PowerShell via cmd.exe (requires proper escaping)
+---      - Try certutil via cmd.exe (legacy fallback)
+---
+--- Path Handling:
+---   - Unix tools accept forward slashes on all platforms
+---   - Windows tools invoked via cmd.exe accept forward slashes
+---   - No path normalization needed (forward slashes work everywhere)
+---
+--- Error Handling:
+---   - Throws error if file doesn't exist
+---   - Throws error with diagnostic output if all methods fail
+---   - Shows attempted output from each tool for debugging
 local function compute_sha256(filepath, os_type)
     if not file.exists(filepath) then
         error(string.format("Cannot compute checksum: file does not exist: %s", filepath))
-    end
-
-    if os_type == "windows" then
-        local ps_cmd = string.format(
-            "powershell.exe -NoProfile -ExecutionPolicy Bypass -Command \"(Get-FileHash -Algorithm SHA256 -Path '%s').Hash\"",
-            filepath:gsub("\\", "/")
-        )
-        local ok, ps_output = pcall(cmd.exec, ps_cmd)
-        if ok and ps_output then
-            local hash = parse_sha256_from_output(ps_output)
-            if hash then
-                return hash
-            end
-        end
-
-        local certutil_cmd = string.format('certutil.exe -hashfile "%s" SHA256', filepath:gsub("\\", "/"))
-        local ok2, certutil_output = pcall(cmd.exec, certutil_cmd)
-        if ok2 and certutil_output then
-            local hash = parse_sha256_from_output(certutil_output)
-            if hash then
-                return hash
-            end
-        end
-
-        error(
-            string.format(
-                "Failed to compute SHA256 on Windows. PowerShell output: %s, certutil output: %s",
-                tostring(ps_output or "failed"),
-                tostring(certutil_output or "failed")
-            )
-        )
     end
 
     local unix_cmd = string.format(
@@ -93,7 +98,41 @@ local function compute_sha256(filepath, os_type)
             return hash
         end
     end
-    error(string.format("Failed to compute SHA256 on Unix: %s", tostring(output or "failed")))
+
+    if os_type == "windows" then
+        local ps_cmd = string.format(
+            'cmd.exe /c "powershell.exe -NoProfile -ExecutionPolicy Bypass -Command \\"(Get-FileHash -Algorithm SHA256 -Path \'%s\').Hash\\""',
+            filepath:gsub("\\", "/")
+        )
+        local ok2, ps_output = pcall(cmd.exec, ps_cmd)
+        if ok2 and ps_output then
+            local hash = parse_sha256_from_output(ps_output)
+            if hash then
+                return hash
+            end
+        end
+
+        local certutil_cmd =
+            string.format('cmd.exe /c "certutil.exe -hashfile \\"%s\\" SHA256"', filepath:gsub("\\", "/"))
+        local ok3, certutil_output = pcall(cmd.exec, certutil_cmd)
+        if ok3 and certutil_output then
+            local hash = parse_sha256_from_output(certutil_output)
+            if hash then
+                return hash
+            end
+        end
+
+        error(
+            string.format(
+                "Failed to compute SHA256 on Windows. Unix tools: %s, PowerShell: %s, certutil: %s",
+                tostring(output or "failed"),
+                tostring(ps_output or "failed"),
+                tostring(certutil_output or "failed")
+            )
+        )
+    end
+
+    error(string.format("Failed to compute SHA256: %s", tostring(output or "failed")))
 end
 
 local function is_musl_libc()

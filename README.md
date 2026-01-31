@@ -79,6 +79,24 @@ Binaries are sourced from [theseus-rs/postgresql-binaries](https://github.com/th
 | Linux | ARM64 (musl) | `aarch64-unknown-linux-musl` |
 | Windows | x86_64 | `x86_64-pc-windows-msvc` |
 
+### System Dependencies
+
+SHA256 checksum verification requires platform-specific tools:
+
+**Unix/Linux/macOS:**
+- `sha256sum` (GNU coreutils) OR `shasum` (macOS/BSD)
+- `awk` (standard on all systems)
+
+**Windows:**
+- **Primary**: Unix tools via Git Bash (Git for Windows, MSYS2, Cygwin)
+  - `sha256sum`, `awk` - provided by Git for Windows
+  - Works in GitHub Actions and most CI environments
+- **Fallback 1**: PowerShell (Windows 7+)
+  - `Get-FileHash` cmdlet (PowerShell 4.0+)
+- **Fallback 2**: `certutil.exe` (Windows Vista+)
+
+The plugin tries Unix tools first (works everywhere including Git Bash on Windows), then falls back to Windows-specific tools if needed.
+
 ## Supported PostgreSQL Versions
 
 - PostgreSQL 18.x
