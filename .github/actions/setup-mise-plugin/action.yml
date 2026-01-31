@@ -1,0 +1,27 @@
+name: Setup mise with postgres-binary plugin
+description: Set up mise, link the postgres-binary plugin, and clean existing installations
+
+inputs:
+  cache:
+    description: Enable mise cache
+    required: false
+    default: 'true'
+
+runs:
+  using: composite
+  steps:
+    - uses: jdx/mise-action@v3
+      with:
+        experimental: true
+        cache: ${{ inputs.cache }}
+
+    - name: Link plugin
+      shell: bash
+      run: mise plugin link --force postgres-binary "$PWD"
+
+    - name: Clean existing postgres installations
+      shell: bash
+      run: |
+        if mise list postgres-binary:postgres 2>/dev/null | grep -q .; then
+          mise uninstall postgres-binary:postgres --all || true
+        fi

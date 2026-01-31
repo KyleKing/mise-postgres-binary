@@ -57,19 +57,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v6
-      - uses: jdx/mise-action@v3
-        with:
-          experimental: true
-          cache: true
-
-      - name: Link plugin
-        run: mise plugin link --force postgres-binary "$PWD"
-
-      - name: Clean existing postgres installations
-        run: |
-          if mise list postgres-binary:postgres 2>/dev/null | grep -q .; then
-            mise uninstall postgres-binary:postgres --all || true
-          fi
+      - uses: ./.github/actions/setup-mise-plugin
 
       - name: List available versions
         env:
@@ -146,21 +134,7 @@ jobs:
     continue-on-error: true
     steps:
       - uses: actions/checkout@v6
-      - uses: jdx/mise-action@v3
-        with:
-          experimental: true
-          cache: true
-
-      - name: Link plugin
-        shell: bash
-        run: mise plugin link --force postgres-binary "$PWD"
-
-      - name: Clean existing postgres installations
-        shell: bash
-        run: |
-          if mise list postgres-binary:postgres 2>/dev/null | grep -q .; then
-            mise uninstall postgres-binary:postgres --all || true
-          fi
+      - uses: ./.github/actions/setup-mise-plugin
 
       - name: List available versions
         shell: bash
