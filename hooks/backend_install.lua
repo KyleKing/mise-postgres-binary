@@ -45,30 +45,11 @@ local function normalize_path(path, os_type)
     return path
 end
 
-local function try_checksum_cmd(command, diagnostics, method, os_type, install_path)
+local function try_checksum_cmd(command, diagnostics, method, os_type)
     diagnostics[method].attempted = true
     diagnostics[method].command = command
 
-    local output
-    if os_type == "windows" then
-        local path_sep = "\\"
-        local temp_out = install_path .. path_sep .. "checksum_output.txt"
-
-        local redirect_cmd = string.format('%s > "%s" 2>&1', command, temp_out)
-        local exit_code = os.execute(redirect_cmd)
-
-        if file.exists(temp_out) then
-            output = file.read(temp_out)
-            file.remove(temp_out)
-        end
-
-        if not exit_code or exit_code ~= 0 then
-            diagnostics[method].error = "Command not found or failed to execute"
-            return nil
-        end
-    else
-        output = cmd.exec(command)
-    end
+    local output = cmd.exec(command)
 
     if output and output ~= "" then
         diagnostics[method].output = output
@@ -140,56 +121,49 @@ end
 --- Computes SHA256 checksum using platform-appropriate tools
 --- @param filepath string Path to file (forward or backward slashes)
 --- @param os_type string Operating system type from RUNTIME.osType
---- @param install_path string Installation directory for temporary files
 --- @return string|nil SHA256 hash (64-char lowercase hex string), or nil if skipped
-local function compute_sha256(filepath, os_type, install_path)
+local function compute_sha256(filepath, os_type)
     if not file.exists(filepath) then
         error(string.format("Cannot compute checksum: file does not exist: %s", filepath))
     end
 
     local diagnostics = {
-        unix = { attempted = false, success = false, error = nil, output = nil, command = nil },
-        powershell = { attempted = false, success = false, error = nil, output = nil, command = nil },
-        certutil = { attempted = false, success = false, error = nil, output = nil, command = nil },
+        checksum = { attempted = false, success = false, error = nil, output = nil, command = nil },
     }
 
-    if os_type ~= "windows" then
-        local unix_cmd = string.format(
+    local command
+    if os_type == "windows" then
+        command = string.format(
+            "powershell.exe -NoProfile -ExecutionPolicy Bypass -Command \"(Get-FileHash -Algorithm SHA256 -Path '%s').Hash\"",
+            filepath
+        )
+    else
+        command = string.format(
             '(sha256sum "%s" 2>/dev/null || shasum -a 256 "%s" 2>/dev/null) | awk \'{print $1}\'',
             filepath,
             filepath
         )
-        local hash = try_checksum_cmd(unix_cmd, diagnostics, "unix", os_type, install_path)
-        if hash then
-            return hash
-        end
+    end
 
-        return checksum_error(filepath, diagnostics, {
+    local hash = try_checksum_cmd(command, diagnostics, "checksum", os_type)
+    if hash then
+        return hash
+    end
+
+    local help_text = {}
+    if os_type == "windows" then
+        help_text = {
+            "Requires PowerShell (included in all modern Windows versions)",
+            "To skip validation (insecure): export MISE_POSTGRES_BINARY_SKIP_CHECKSUM=1",
+        }
+    else
+        help_text = {
             "Ensure sha256sum (Linux) or shasum (macOS) is installed and in PATH",
             "To skip validation (insecure): export MISE_POSTGRES_BINARY_SKIP_CHECKSUM=1",
-        })
+        }
     end
 
-    local ps_cmd = string.format(
-        "powershell.exe -NoProfile -ExecutionPolicy Bypass -Command \"(Get-FileHash -Algorithm SHA256 -Path '%s').Hash\"",
-        filepath
-    )
-    local ps_hash = try_checksum_cmd(ps_cmd, diagnostics, "powershell", os_type, install_path)
-    if ps_hash then
-        return ps_hash
-    end
-
-    local certutil_cmd = string.format('certutil.exe -hashfile "%s" SHA256', filepath)
-    local certutil_hash = try_checksum_cmd(certutil_cmd, diagnostics, "certutil", os_type, install_path)
-    if certutil_hash then
-        return certutil_hash
-    end
-
-    return checksum_error(filepath, diagnostics, {
-        "For Git Bash users: Ensure Git for Windows is installed (includes Unix tools)",
-        "For PowerShell users: Requires PowerShell 4.0+ (Windows 8.1+)",
-        "To skip validation (insecure): export MISE_POSTGRES_BINARY_SKIP_CHECKSUM=1",
-    })
+    return checksum_error(filepath, diagnostics, help_text)
 end
 
 local function is_musl_libc()
@@ -324,7 +298,7 @@ local function download_and_verify_postgresql(version, platform, install_path)
     print(string.format("Downloaded archive: %s", temp_archive))
     print("Verifying checksum...")
 
-    local computed_sha256 = compute_sha256(temp_archive, os_type, install_path)
+    local computed_sha256 = compute_sha256(temp_archive, os_type)
 
     if computed_sha256 then
         print(string.format("Computed SHA256: %s", computed_sha256))
