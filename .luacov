@@ -3,7 +3,6 @@
 
 -- Patterns for files to include in coverage
 include = {
-    "src/",
     "hooks/",
     "metadata.lua",
 }

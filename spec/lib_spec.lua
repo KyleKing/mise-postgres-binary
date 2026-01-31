@@ -1,4 +1,4 @@
-local lib = require("src.lib")
+local lib = require("hooks.lib")
 
 describe("lib", function()
     describe("trim", function()

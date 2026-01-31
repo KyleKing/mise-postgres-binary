@@ -1,4 +1,4 @@
-local lib = require("src.lib")
+local lib = require("hooks.lib")
 
 describe("backend_list_versions", function()
     it("should exist and be syntactically valid", function()

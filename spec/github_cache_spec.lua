@@ -1,4 +1,4 @@
-local github_cache = require("src.github_cache")
+local github_cache = require("hooks.github_cache")
 
 local function _temp_dir()
     local dir = os.tmpname()

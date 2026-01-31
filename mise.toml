@@ -25,7 +25,7 @@ echo "Setup complete!"
 
 [tasks.format]
 description = "Format Lua code with stylua"
-run = "stylua src/ metadata.lua hooks/"
+run = "stylua metadata.lua hooks/"
 
 [tasks.lint]
 description = "Run all linters (selene, stylua, actionlint)"
