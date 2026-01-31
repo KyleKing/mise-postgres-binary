@@ -1,9 +1,9 @@
 [tool.commitizen]
+major_version_zero = true
 name = "cz_conventional_commits"
-version = "0.1.2"
-version_files = [
-    "metadata.lua:version",
-]
 tag_format = "$version"
 update_changelog_on_bump = true
-major_version_zero = true
+version = "0.1.2"
+version_files = [
+  "metadata.lua:version",
+]

@@ -2,14 +2,43 @@
 MISE_USE_VERSIONS_HOST = "0"
 _.path = [".luarocks/bin"]
 
-[tools]
-actionlint = "latest"
-hk = "latest"
-pkl = "latest"
-ruff = "latest"
-"cargo:selene" = "latest"
-stylua = "latest"
-uv = "latest"
+[tasks.ci]
+depends = ["lint", "test", "test-integration"]
+description = "Run CI pipeline (lint + test)"
+
+[tasks.clean]
+description = "Clean up test installations"
+run = '''
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "Cleaning up..."
+mise plugin uninstall postgres-binary 2>/dev/null || true
+rm -rf ~/.local/share/mise/installs/postgres-binary* 2>/dev/null || true
+rm -rf ~/.local/share/mise/downloads/postgres-binary* 2>/dev/null || true
+echo "Clean complete"
+'''
+
+[tasks.coverage]
+depends = ["test"]
+description = "Generate coverage report with LuaCov"
+run = '''
+#!/usr/bin/env bash
+set -euo pipefail
+echo "Generating coverage report..."
+.luarocks/bin/luacov
+echo ""
+echo "Coverage summary:"
+grep -A 100 "^Summary" luacov.report.out | head -20
+'''
+
+[tasks.format]
+description = "Format Lua code with stylua"
+run = "stylua metadata.lua hooks/"
+
+[tasks.lint]
+description = "Run all linters (selene, stylua, actionlint)"
+run = "hk run check --all"
 
 [tasks.setup]
 description = "Install development dependencies (busted, luacov)"
@@ -23,21 +52,9 @@ luarocks install --tree .luarocks luacov
 echo "Setup complete!"
 '''
 
-[tasks.format]
-description = "Format Lua code with stylua"
-run = "stylua metadata.lua hooks/"
-
-[tasks.lint]
-description = "Run all linters (selene, stylua, actionlint)"
-run = "hk run check --all"
-
-[tasks.ci]
-description = "Run CI pipeline (lint + test)"
-depends = ["lint", "test", "test-integration"]
-
 [tasks.test]
-description = "Run unit tests with Busted"
 depends = ["setup"]
+description = "Run unit tests with Busted"
 run = '''
 #!/usr/bin/env bash
 set -euo pipefail
@@ -45,35 +62,14 @@ echo "Running unit tests with Busted..."
 .luarocks/bin/busted
 '''
 
-[tasks.coverage]
-description = "Generate coverage report with LuaCov"
-depends = ["test"]
-run = '''
-#!/usr/bin/env bash
-set -euo pipefail
-echo "Generating coverage report..."
-.luarocks/bin/luacov
-echo ""
-echo "Coverage summary:"
-grep -A 100 "^Summary" luacov.report.out | head -20
-'''
-
-[tasks.test-integration]
-description = "Test the backend plugin (link and list versions)"
+[tasks.test-docker]
+description = "Run Docker-based tests"
 run = '''
 #!/usr/bin/env bash
 set -euo pipefail
 
-echo "Testing mise-postgres-binary backend plugin..."
-
-# Link plugin locally for testing
-mise plugin link --force postgres-binary "$PWD"
-
-# Test listing versions
-echo "Listing available versions..."
-mise ls-remote postgres-binary:postgres | head -5
-
-echo "Backend plugin tests passed!"
+FILTER="${1:-all}"
+./docker/run-docker-tests.sh "$FILTER"
 '''
 
 [tasks.test-install]
@@ -115,23 +111,23 @@ mise exec "postgres-binary:postgres@$PG_VERSION" -- pg_ctl stop -D "$PGDATA" -m 
 echo "Full installation test passed!"
 '''
 
-[tasks.test-docker]
-description = "Run Docker-based tests"
+[tasks.test-integration]
+description = "Test the backend plugin (link and list versions)"
 run = '''
 #!/usr/bin/env bash
 set -euo pipefail
 
-FILTER="${1:-all}"
-./docker/run-docker-tests.sh "$FILTER"
+echo "Testing mise-postgres-binary backend plugin..."
+
+# Link plugin locally for testing
+mise plugin link --force postgres-binary "$PWD"
+
+# Test listing versions
+echo "Listing available versions..."
+mise ls-remote postgres-binary:postgres | head -5
+
+echo "Backend plugin tests passed!"
 '''
-
-[tasks.versions-update-check]
-description = "Check for new PostgreSQL versions and recommend CI matrix updates"
-run = "./scripts/update-postgres-versions.py"
-
-[tasks.versions-update-apply]
-description = "Apply PostgreSQL version updates to CI matrix"
-run = "./scripts/update-postgres-versions.py --apply"
 
 [tasks.test-version-matrix]
 description = "Test multiple PostgreSQL versions (CI matrix simulation)"
@@ -170,15 +166,20 @@ else
 fi
 '''
 
-[tasks.clean]
-description = "Clean up test installations"
-run = '''
-#!/usr/bin/env bash
-set -euo pipefail
+[tasks.versions-update-apply]
+description = "Apply PostgreSQL version updates to CI matrix"
+run = "./scripts/update-postgres-versions.py --apply"
 
-echo "Cleaning up..."
-mise plugin uninstall postgres-binary 2>/dev/null || true
-rm -rf ~/.local/share/mise/installs/postgres-binary* 2>/dev/null || true
-rm -rf ~/.local/share/mise/downloads/postgres-binary* 2>/dev/null || true
-echo "Clean complete"
-'''
+[tasks.versions-update-check]
+description = "Check for new PostgreSQL versions and recommend CI matrix updates"
+run = "./scripts/update-postgres-versions.py"
+
+[tools]
+actionlint = "latest"
+"cargo:selene" = "latest"
+hk = "latest"
+"pipx:toml-sort" = "latest"
+pkl = "latest"
+ruff = "latest"
+stylua = "latest"
+uv = "latest"

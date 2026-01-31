@@ -3,5 +3,5 @@ std = "lua51+mise-postgres+busted"
 [config]
 
 [lints]
-unused_variable = "allow"
 incorrect_standard_library_use = "allow"
+unused_variable = "allow"

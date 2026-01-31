@@ -16,6 +16,7 @@ permissions:
 
 env:
   MISE_VERBOSE: 1
+  RUST_BACKTRACE: full
 
 jobs:
   lint:
