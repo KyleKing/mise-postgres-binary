@@ -78,9 +78,12 @@ SHA256 checksum verification requires platform-specific tools:
 - `awk` (standard on all systems)
 
 **Windows:**
-- PowerShell (included in all modern Windows versions)
-  - `Get-FileHash` cmdlet
-  - **Note:** If PowerShell is unavailable (e.g., running in Git Bash or cmd.exe), checksum verification is automatically skipped with a warning
+- **Recommended:** PowerShell (included in all modern Windows versions)
+  - Supports full checksum verification via `Get-FileHash` cmdlet
+- **Alternative:** Git Bash, MSYS2, or other Unix-like shells
+  - File operations will use Unix commands
+  - Checksum verification automatically skipped (PowerShell required for verification)
+  - May have better compatibility in CI/CD environments
 
 **Skip Checksum Validation (Not Recommended):**
 

@@ -131,7 +131,6 @@ jobs:
     needs: lint
     timeout-minutes: 30
     runs-on: windows-latest
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-mise-plugin

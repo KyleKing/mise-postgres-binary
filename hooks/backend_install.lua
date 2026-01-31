@@ -356,22 +356,79 @@ local function download_and_verify_postgresql(version, platform, install_path)
 
     print(string.format("Moving files from extracted directory: %s", extracted_dir))
     if os_type == "windows" then
-        local win_src = normalize_path(extracted_dir, os_type)
-        local win_dest = normalize_path(install_path, os_type)
-        local move_cmd = string.format(
-            "powershell -NoProfile -Command \"Copy-Item -Path '%s\\*' -Destination '%s' -Recurse -Force; Remove-Item -Path '%s' -Recurse -Force\"",
-            win_src,
-            win_dest,
-            win_src
-        )
-        local move_output = cmd.exec(move_cmd)
-        if move_output and (move_output:match("[Ee]rror") or move_output:match("[Ff]ailed")) then
+        local move_succeeded = false
+        local move_output = nil
+        local move_cmd = nil
+
+        local unix_test = cmd.exec("which sh 2>/dev/null || echo NOTFOUND")
+        local has_unix_shell = unix_test and not unix_test:match("NOTFOUND")
+
+        if has_unix_shell then
+            print("Detected Unix-like shell (Git Bash/MSYS2), using Unix commands for file operations")
+            move_cmd =
+                string.format('sh -c \'cp -r "%s"/* "%s/" && rm -rf "%s"\'', extracted_dir, install_path, extracted_dir)
+            move_output = cmd.exec(move_cmd)
+            if not move_output or not (move_output:match("[Ee]rror") or move_output:match("[Ff]ailed")) then
+                move_succeeded = true
+            end
+        end
+
+        if not move_succeeded then
+            if has_unix_shell then
+                print("Unix command failed, falling back to PowerShell")
+            end
+            local win_src = normalize_path(extracted_dir, os_type)
+            local win_dest = normalize_path(install_path, os_type)
+            move_cmd = string.format(
+                "powershell.exe -NoProfile -ExecutionPolicy Bypass -Command \"Copy-Item -Path '%s\\*' -Destination '%s' -Recurse -Force; Remove-Item -Path '%s' -Recurse -Force\"",
+                win_src,
+                win_dest,
+                win_src
+            )
+            move_output = cmd.exec(move_cmd)
+            if not move_output or not (move_output:match("[Ee]rror") or move_output:match("[Ff]ailed")) then
+                move_succeeded = true
+            end
+        end
+
+        if not move_succeeded then
             local error_msg = {
                 "Failed to move extracted files to install directory (Windows).",
-                string.format("\nSource: %s", win_src),
-                string.format("Destination: %s", win_dest),
-                string.format("Command: %s", move_cmd),
-                string.format("Error: %s", move_output),
+                string.format("\nExtracted directory: %s", extracted_dir),
+                string.format("Install path: %s", install_path),
+                string.format("Last command: %s", move_cmd),
+                string.format("Error: %s", move_output or "(empty output)"),
+            }
+            error(table.concat(error_msg, "\n"))
+        end
+
+        local bin_dir = install_path .. "\\bin"
+        if not file.exists(bin_dir) then
+            local ls_cmd
+            if has_unix_shell then
+                ls_cmd = string.format(
+                    'ls -la "%s" 2>&1 || dir "%s" 2>&1',
+                    install_path,
+                    normalize_path(install_path, os_type)
+                )
+            else
+                ls_cmd = string.format('dir "%s" 2>&1', normalize_path(install_path, os_type))
+            end
+            local ls_output = cmd.exec(ls_cmd) or "(failed to list directory)"
+
+            local error_msg = {
+                "File move completed but bin directory not found.",
+                string.format("\nExpected bin directory: %s", bin_dir),
+                string.format("Install path: %s", install_path),
+                string.format("Extracted directory existed: %s", tostring(file.exists(extracted_dir))),
+                string.format("Move command used: %s", move_cmd),
+                string.format("Command output: %s", move_output or "(empty)"),
+                "\nInstall directory contents:",
+                ls_output,
+                "\nPossible causes:",
+                "  - Archive extraction created unexpected directory structure",
+                "  - File move succeeded but bin directory wasn't in the extracted files",
+                "  - PowerShell Copy-Item failed silently in non-PowerShell environment",
             }
             error(table.concat(error_msg, "\n"))
         end
