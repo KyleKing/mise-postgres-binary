@@ -77,7 +77,7 @@ docker run --rm mise-postgres-debian-pg14
 docker buildx bake --print
 ```
 
-See `docker-bake.hcl` for available target groups.
+See `docker/docker-bake.hcl` for available target groups.
 
 ### CI Pipeline
 
@@ -126,8 +126,14 @@ mise plugin link --force postgres-binary "$PWD"
 ### Version Not Installing
 
 ```sh
+# List available versions
 mise ls-remote postgres-binary:postgres
+
+# Debug installation with detailed output
 MISE_DEBUG=1 mise install postgres-binary:postgres@14.20.0
+
+# Save debug output for issue reports
+MISE_DEBUG=1 mise install postgres-binary:postgres@14.20.0 2>&1 | tee debug.log
 ```
 
 ### Docker Build Fails

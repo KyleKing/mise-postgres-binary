@@ -2,11 +2,11 @@
 # Run Docker-based tests for mise-postgres-binary using Docker Buildx Bake
 #
 # Usage:
-#   ./test/run-docker-tests.sh           # Run all default tests
-#   ./test/run-docker-tests.sh debian    # Run all Debian targets
-#   ./test/run-docker-tests.sh alpine    # Run all Alpine targets
-#   ./test/run-docker-tests.sh arm64     # Run ARM64 tests (requires QEMU or ARM host)
-#   ./test/run-docker-tests.sh ci        # Run minimal CI targets
+#   ./docker/run-docker-tests.sh           # Run all default tests
+#   ./docker/run-docker-tests.sh debian    # Run all Debian targets
+#   ./docker/run-docker-tests.sh alpine    # Run all Alpine targets
+#   ./docker/run-docker-tests.sh arm64     # Run ARM64 tests (requires QEMU or ARM host)
+#   ./docker/run-docker-tests.sh ci        # Run minimal CI targets
 
 set -euo pipefail
 

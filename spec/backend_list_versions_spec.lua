@@ -1,4 +1,4 @@
-local lib = require("lib")
+local lib = require("src.lib")
 
 describe("backend_list_versions", function()
     it("should exist and be syntactically valid", function()

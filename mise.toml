@@ -25,7 +25,7 @@ echo "Setup complete!"
 
 [tasks.format]
 description = "Format Lua code with stylua"
-run = "stylua github_cache.lua lib.lua metadata.lua hooks/"
+run = "stylua src/ metadata.lua hooks/"
 
 [tasks.lint]
 description = "Run all linters (selene, stylua, actionlint)"
@@ -121,14 +121,14 @@ run = '''
 set -euo pipefail
 
 FILTER="${1:-all}"
-./test/run-docker-tests.sh "$FILTER"
+./docker/run-docker-tests.sh "$FILTER"
 '''
 
-[tasks.check-versions]
+[tasks.versions-update-check]
 description = "Check for new PostgreSQL versions and recommend CI matrix updates"
 run = "./scripts/update-postgres-versions.py"
 
-[tasks.update-versions]
+[tasks.versions-update-apply]
 description = "Apply PostgreSQL version updates to CI matrix"
 run = "./scripts/update-postgres-versions.py --apply"
 

@@ -98,6 +98,18 @@ export MISE_POSTGRES_BINARY_SKIP_CHECKSUM=1
 
 ## Troubleshooting
 
+### Debug Installation Issues
+
+Enable detailed diagnostic output:
+
+```bash
+# Show all diagnostic information
+MISE_DEBUG=1 mise install postgres-binary:postgres@14.20.0
+
+# Save output for bug reports
+MISE_DEBUG=1 mise install postgres-binary:postgres@14.20.0 2>&1 | tee debug.log
+```
+
 ### Unsupported Platform
 
 If you see "Unsupported platform" error, check:
@@ -137,7 +149,7 @@ pg_ctl start -D "$PGDATA" -o "-p 5433" -l /tmp/postgres.log # Use alternate port
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup and guidelines.
+See [CONTRIBUTING.md](docs/CONTRIBUTING.md) for development setup and guidelines.
 
 ## Credits
 

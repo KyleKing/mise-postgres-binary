@@ -6,7 +6,7 @@
 """Update PostgreSQL versions across all project files.
 
 Source of truth: .versions.json (newest/oldest of 5 supported major versions)
-Updates: ci.yml, docker-bake.hcl, mise.toml, test/Dockerfile.*
+Updates: ci.yml, docker/docker-bake.hcl, mise.toml, docker/Dockerfile.*
 """
 
 import argparse
@@ -21,9 +21,9 @@ import httpx
 REPO_ROOT = Path(__file__).parent.parent
 VERSIONS_FILE = REPO_ROOT / ".versions.json"
 CI_WORKFLOW = REPO_ROOT / ".github/workflows/ci.yml"
-DOCKER_BAKE = REPO_ROOT / "docker-bake.hcl"
+DOCKER_BAKE = REPO_ROOT / "docker/docker-bake.hcl"
 MISE_TOML = REPO_ROOT / "mise.toml"
-DOCKERFILES = list((REPO_ROOT / "test").glob("Dockerfile.*"))
+DOCKERFILES = list((REPO_ROOT / "docker").glob("Dockerfile.*"))
 NUM_SUPPORTED_VERSIONS = 5
 MIN_MAJOR_VERSION = 13
 

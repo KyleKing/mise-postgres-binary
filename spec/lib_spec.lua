@@ -1,4 +1,4 @@
-local lib = require("lib")
+local lib = require("src.lib")
 
 describe("lib", function()
     describe("trim", function()

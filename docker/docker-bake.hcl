@@ -53,13 +53,13 @@ target "_base" {
 
 target "_debian" {
   inherits   = ["_base"]
-  dockerfile = "test/Dockerfile.debian"
+  dockerfile = "docker/Dockerfile.debian"
   platforms  = [PLATFORMS.amd64]
 }
 
 target "_alpine" {
   inherits   = ["_base"]
-  dockerfile = "test/Dockerfile.alpine"
+  dockerfile = "docker/Dockerfile.alpine"
   platforms  = [PLATFORMS.amd64]
 }
 

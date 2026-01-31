@@ -1,6 +1,6 @@
 local http = require("http")
 local json = require("json")
-local github_cache = require("github_cache")
+local github_cache = require("src.github_cache")
 
 local function parse_major_version(version)
     if not version then
