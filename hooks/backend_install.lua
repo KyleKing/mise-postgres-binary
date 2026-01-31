@@ -46,6 +46,10 @@ local function normalize_path(path, os_type)
 end
 
 local function compute_sha256(filepath, os_type)
+    if not file.exists(filepath) then
+        error(string.format("Cannot compute checksum: file does not exist: %s", filepath))
+    end
+
     if os_type == "windows" then
         local win_path = normalize_path(filepath, os_type)
         local ps_cmd = string.format(
@@ -53,29 +57,44 @@ local function compute_sha256(filepath, os_type)
             win_path
         )
         local ok, ps_output = pcall(cmd.exec, ps_cmd)
-        if ok then
+        if ok and ps_output then
             local hash = parse_sha256_from_output(ps_output)
             if hash then
                 return hash
             end
         end
+
         local certutil_cmd = string.format('certutil -hashfile "%s" SHA256', win_path)
         local ok2, certutil_output = pcall(cmd.exec, certutil_cmd)
-        if ok2 then
-            return parse_sha256_from_output(certutil_output)
+        if ok2 and certutil_output then
+            local hash = parse_sha256_from_output(certutil_output)
+            if hash then
+                return hash
+            end
         end
-        return nil
+
+        error(
+            string.format(
+                "Failed to compute SHA256 on Windows. PowerShell output: %s, certutil output: %s",
+                tostring(ps_output or "failed"),
+                tostring(certutil_output or "failed")
+            )
+        )
     end
+
     local unix_cmd = string.format(
         '(sha256sum "%s" 2>/dev/null || shasum -a 256 "%s" 2>/dev/null) | awk \'{print $1}\'',
         filepath,
         filepath
     )
     local ok, output = pcall(cmd.exec, unix_cmd)
-    if ok then
-        return parse_sha256_from_output(output)
+    if ok and output then
+        local hash = parse_sha256_from_output(output)
+        if hash then
+            return hash
+        end
     end
-    return nil
+    error(string.format("Failed to compute SHA256 on Unix: %s", tostring(output or "failed")))
 end
 
 local function is_musl_libc()
@@ -139,9 +158,6 @@ local function download_and_verify_postgresql(version, platform, install_path)
 
     local os_type = RUNTIME.osType:lower()
     local computed_sha256 = compute_sha256(temp_archive, os_type)
-    if not computed_sha256 then
-        error("Failed to compute SHA256 checksum for: " .. temp_archive)
-    end
 
     if computed_sha256 ~= expected_sha256 then
         os.remove(temp_archive)
