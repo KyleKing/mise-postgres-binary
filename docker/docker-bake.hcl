@@ -24,10 +24,6 @@ variable "PLATFORMS" {
   }
 }
 
-variable "GITHUB_TOKEN" {
-  default = ""
-}
-
 function "make_tag" {
   params = [distro, version_key, arch]
   result = arch == "amd64" ? "mise-postgres-${distro}-${version_key}" : "mise-postgres-${distro}-${arch}-${version_key}"
@@ -42,13 +38,11 @@ function "cache_config" {
 }
 
 target "_base" {
-  context = "."
-  pull    = true
+  context    = "."
+  pull       = true
   cache-from = cache_config().cache-from
   cache-to   = cache_config().cache-to
-  args = {
-    GITHUB_TOKEN = "${GITHUB_TOKEN}"
-  }
+  secret     = ["id=github_token,env=GITHUB_TOKEN"]
 }
 
 target "_debian" {

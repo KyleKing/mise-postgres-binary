@@ -2,7 +2,6 @@
 FROM debian:bookworm-slim
 
 ARG POSTGRES_VERSION=14.20.0
-ARG GITHUB_TOKEN
 
 # Install minimal dependencies + PostgreSQL runtime dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -25,7 +24,6 @@ WORKDIR /home/postgres
 # Install mise as postgres user
 RUN curl https://mise.run | sh
 ENV PATH="/home/postgres/.local/bin:$PATH"
-ENV GITHUB_TOKEN=${GITHUB_TOKEN}
 
 # Create plugin directory and copy plugin files
 RUN mkdir -p /home/postgres/plugin
@@ -33,13 +31,17 @@ WORKDIR /home/postgres/plugin
 COPY --chown=postgres:postgres . .
 
 # Link the plugin and configure mise
-RUN mise trust \
+RUN --mount=type=secret,id=github_token,uid=1000 \
+    export GITHUB_TOKEN=$(cat /run/secrets/github_token 2>/dev/null || true) \
+    && mise trust \
     && mise settings set experimental true \
     && mise plugin link --force postgres-binary /home/postgres/plugin
 
 # Test script
-RUN printf '#!/bin/bash\n\
+RUN --mount=type=secret,id=github_token,uid=1000 \
+    printf '#!/bin/bash\n\
 set -euo pipefail\n\
+export GITHUB_TOKEN=$(cat /run/secrets/github_token 2>/dev/null || true)\n\
 echo "=== Testing mise-postgres-binary on Debian (glibc) ==="\n\
 echo "Platform: $(uname -s) $(uname -m)"\n\
 echo ""\n\

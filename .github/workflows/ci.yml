@@ -35,11 +35,10 @@ jobs:
           key: luarocks-${{ runner.os }}-${{ hashFiles('mise.toml') }}
           restore-keys: |
             luarocks-${{ runner.os }}-
-      # Disable cache to prevent stale installations from interfering with tests
       - uses: jdx/mise-action@v3
         with:
           experimental: true
-          cache: false
+          cache: true
       - name: Run linters
         run: mise run lint
       - name: Run unit tests
@@ -57,14 +56,19 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v6
-      # Disable cache to prevent stale installations from interfering with tests
       - uses: jdx/mise-action@v3
         with:
           experimental: true
-          cache: false
+          cache: true
 
       - name: Link plugin
         run: mise plugin link --force postgres-binary "$PWD"
+
+      - name: Clean existing postgres installations
+        run: |
+          if mise list postgres-binary:postgres 2>/dev/null | grep -q .; then
+            mise uninstall postgres-binary:postgres --all || true
+          fi
 
       - name: List available versions
         env:
@@ -123,6 +127,8 @@ jobs:
 
       - name: Build ${{ matrix.target }}
         uses: docker/bake-action@v6
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           files: docker/docker-bake.hcl
           targets: ${{ matrix.target }}
@@ -139,15 +145,21 @@ jobs:
     continue-on-error: true
     steps:
       - uses: actions/checkout@v6
-      # Disable cache to prevent stale installations from interfering with tests
       - uses: jdx/mise-action@v3
         with:
           experimental: true
-          cache: false
+          cache: true
 
       - name: Link plugin
         shell: bash
         run: mise plugin link --force postgres-binary "$PWD"
+
+      - name: Clean existing postgres installations
+        shell: bash
+        run: |
+          if mise list postgres-binary:postgres 2>/dev/null | grep -q .; then
+            mise uninstall postgres-binary:postgres --all || true
+          fi
 
       - name: List available versions
         shell: bash
