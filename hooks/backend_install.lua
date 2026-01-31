@@ -45,6 +45,78 @@ local function normalize_path(path, os_type)
     return path
 end
 
+local function try_checksum_cmd(command, diagnostics, method)
+    diagnostics[method].attempted = true
+    diagnostics[method].command = command
+
+    local output = cmd.exec(command)
+    if output and output ~= "" then
+        diagnostics[method].output = output
+        local hash = parse_sha256_from_output(output)
+        if hash then
+            diagnostics[method].success = true
+            return hash
+        end
+        diagnostics[method].error = "Command succeeded but output did not contain valid SHA256 hash"
+    else
+        diagnostics[method].error = "Command returned empty output"
+    end
+    return nil
+end
+
+local function print_checksum_diagnostics(diagnostics)
+    for method, info in pairs(diagnostics) do
+        if info.attempted then
+            print(string.format("\n  Method: %s", method))
+            print(string.format("    Command: %s", info.command or "N/A"))
+            print(string.format("    Success: %s", tostring(info.success)))
+            print(string.format("    Error: %s", info.error or "N/A"))
+            if info.output and #info.output > 0 and #info.output < 500 then
+                print(string.format("    Output: %s", info.output))
+            elseif info.output and #info.output >= 500 then
+                print(string.format("    Output: [%d bytes, truncated]", #info.output))
+            end
+        end
+    end
+end
+
+local function checksum_error(filepath, diagnostics, troubleshooting)
+    local skip_checksum = os.getenv("MISE_POSTGRES_BINARY_SKIP_CHECKSUM")
+    if skip_checksum == "1" or skip_checksum == "true" then
+        print(
+            "WARNING: Skipping SHA256 verification (MISE_POSTGRES_BINARY_SKIP_CHECKSUM=1). This is insecure and not recommended."
+        )
+        print("\nDiagnostics for failed checksum attempts:")
+        print(string.format("  File: %s", filepath))
+        print_checksum_diagnostics(diagnostics)
+        return nil
+    end
+
+    local error_msg = {
+        "Failed to compute SHA256 checksum. All methods failed.",
+        string.format("\nFile: %s", filepath),
+        string.format("File exists: %s", tostring(file.exists(filepath))),
+        "\nAttempted methods:",
+    }
+
+    for method, info in pairs(diagnostics) do
+        if info.attempted then
+            table.insert(error_msg, string.format("\n%s:", method))
+            table.insert(error_msg, string.format("  Command: %s", info.command or "N/A"))
+            table.insert(error_msg, string.format("  Error: %s", info.error or "N/A"))
+            if info.output and #info.output > 0 and #info.output < 200 then
+                table.insert(error_msg, string.format("  Output: %s", info.output))
+            end
+        end
+    end
+
+    table.insert(error_msg, "\n\nTroubleshooting:")
+    for _, tip in ipairs(troubleshooting) do
+        table.insert(error_msg, "  - " .. tip)
+    end
+    error(table.concat(error_msg, "\n"))
+end
+
 --- Computes SHA256 checksum using platform-appropriate tools
 --- @param filepath string Path to file (forward or backward slashes)
 --- @param os_type string Operating system type from RUNTIME.osType
@@ -66,142 +138,39 @@ local function compute_sha256(filepath, os_type)
             filepath,
             filepath
         )
-        diagnostics.unix.attempted = true
-        diagnostics.unix.command = unix_cmd
-
-        local output = cmd.exec(unix_cmd)
-        if output and output ~= "" then
-            diagnostics.unix.output = output
-            local hash = parse_sha256_from_output(output)
-            if hash then
-                diagnostics.unix.success = true
-                return hash
-            else
-                diagnostics.unix.error = "Command succeeded but output did not contain valid SHA256 hash"
-            end
-        else
-            diagnostics.unix.error = "Command returned empty output"
+        local hash = try_checksum_cmd(unix_cmd, diagnostics, "unix")
+        if hash then
+            return hash
         end
+
+        return checksum_error(filepath, diagnostics, {
+            "Ensure sha256sum (Linux) or shasum (macOS) is installed and in PATH",
+            "To skip validation (insecure): export MISE_POSTGRES_BINARY_SKIP_CHECKSUM=1",
+        })
     end
 
-    if os_type == "windows" then
-        local ps_cmd = string.format(
-            "powershell.exe -NoProfile -ExecutionPolicy Bypass -Command \"(Get-FileHash -Algorithm SHA256 -Path '%s').Hash\"",
-            filepath:gsub("\\", "/")
-        )
-        diagnostics.powershell.attempted = true
-        diagnostics.powershell.command = ps_cmd
+    local forward_path = filepath:gsub("\\", "/")
 
-        local ps_output = cmd.exec(ps_cmd)
-        if ps_output and ps_output ~= "" then
-            diagnostics.powershell.output = ps_output
-            local hash = parse_sha256_from_output(ps_output)
-            if hash then
-                diagnostics.powershell.success = true
-                return hash
-            else
-                diagnostics.powershell.error = "PowerShell executed but output did not contain valid SHA256 hash"
-            end
-        else
-            diagnostics.powershell.error = "PowerShell returned empty output"
-        end
-
-        local certutil_cmd = string.format('certutil.exe -hashfile "%s" SHA256', filepath:gsub("\\", "/"))
-        diagnostics.certutil.attempted = true
-        diagnostics.certutil.command = certutil_cmd
-
-        local certutil_output = cmd.exec(certutil_cmd)
-        if certutil_output and certutil_output ~= "" then
-            diagnostics.certutil.output = certutil_output
-            local hash = parse_sha256_from_output(certutil_output)
-            if hash then
-                diagnostics.certutil.success = true
-                return hash
-            else
-                diagnostics.certutil.error = "certutil executed but output did not contain valid SHA256 hash"
-            end
-        else
-            diagnostics.certutil.error = "certutil returned empty output"
-        end
-
-        local skip_checksum = os.getenv("MISE_POSTGRES_BINARY_SKIP_CHECKSUM")
-        if skip_checksum == "1" or skip_checksum == "true" then
-            print(
-                "WARNING: Skipping SHA256 verification (MISE_POSTGRES_BINARY_SKIP_CHECKSUM=1). This is insecure and not recommended."
-            )
-            print("\nDiagnostics for failed checksum attempts:")
-            print(string.format("  File: %s", filepath))
-            for method, info in pairs(diagnostics) do
-                if info.attempted then
-                    print(string.format("\n  Method: %s", method))
-                    print(string.format("    Command: %s", info.command or "N/A"))
-                    print(string.format("    Success: %s", tostring(info.success)))
-                    print(string.format("    Error: %s", info.error or "N/A"))
-                    if info.output and #info.output > 0 and #info.output < 500 then
-                        print(string.format("    Output: %s", info.output))
-                    elseif info.output and #info.output >= 500 then
-                        print(string.format("    Output: [%d bytes, truncated]", #info.output))
-                    end
-                end
-            end
-            return nil
-        end
-
-        local error_msg = {
-            "Failed to compute SHA256 checksum on Windows. All methods failed.",
-            string.format("\nFile: %s", filepath),
-            string.format("File exists: %s", tostring(file.exists(filepath))),
-            "\nAttempted methods:",
-        }
-
-        for method, info in pairs(diagnostics) do
-            if info.attempted then
-                table.insert(error_msg, string.format("\n%s:", method))
-                table.insert(error_msg, string.format("  Command: %s", info.command or "N/A"))
-                table.insert(error_msg, string.format("  Error: %s", info.error or "N/A"))
-                if info.output and #info.output > 0 and #info.output < 200 then
-                    table.insert(error_msg, string.format("  Output: %s", info.output))
-                end
-            end
-        end
-
-        table.insert(error_msg, "\n\nTroubleshooting:")
-        table.insert(error_msg, "  - For Git Bash users: Ensure Git for Windows is installed (includes Unix tools)")
-        table.insert(error_msg, "  - For PowerShell users: Requires PowerShell 4.0+ (Windows 8.1+)")
-        table.insert(error_msg, "  - To skip validation (insecure): export MISE_POSTGRES_BINARY_SKIP_CHECKSUM=1")
-        error(table.concat(error_msg, "\n"))
+    local ps_cmd = string.format(
+        "powershell.exe -NoProfile -ExecutionPolicy Bypass -Command \"(Get-FileHash -Algorithm SHA256 -Path '%s').Hash\"",
+        forward_path
+    )
+    local ps_hash = try_checksum_cmd(ps_cmd, diagnostics, "powershell")
+    if ps_hash then
+        return ps_hash
     end
 
-    local skip_checksum = os.getenv("MISE_POSTGRES_BINARY_SKIP_CHECKSUM")
-    if skip_checksum == "1" or skip_checksum == "true" then
-        print(
-            "WARNING: Skipping SHA256 verification (MISE_POSTGRES_BINARY_SKIP_CHECKSUM=1). This is insecure and not recommended."
-        )
-        print(string.format("\nDiagnostic - Unix tools attempt:"))
-        print(string.format("  Command: %s", diagnostics.unix.command))
-        print(string.format("  Error: %s", diagnostics.unix.error or "N/A"))
-        if diagnostics.unix.output and #diagnostics.unix.output < 200 then
-            print(string.format("  Output: %s", diagnostics.unix.output))
-        end
-        return nil
+    local certutil_cmd = string.format('certutil.exe -hashfile "%s" SHA256', forward_path)
+    local certutil_hash = try_checksum_cmd(certutil_cmd, diagnostics, "certutil")
+    if certutil_hash then
+        return certutil_hash
     end
 
-    local error_msg = {
-        "Failed to compute SHA256 checksum. Unix tools (sha256sum/shasum) not available or failed.",
-        string.format("\nFile: %s", filepath),
-        string.format("File exists: %s", tostring(file.exists(filepath))),
-        string.format("\nCommand attempted: %s", diagnostics.unix.command),
-        string.format("Error: %s", diagnostics.unix.error or "N/A"),
-    }
-
-    if diagnostics.unix.output and #diagnostics.unix.output < 200 then
-        table.insert(error_msg, string.format("Output: %s", diagnostics.unix.output))
-    end
-
-    table.insert(error_msg, "\n\nTroubleshooting:")
-    table.insert(error_msg, "  - Ensure sha256sum (Linux) or shasum (macOS) is installed and in PATH")
-    table.insert(error_msg, "  - To skip validation (insecure): export MISE_POSTGRES_BINARY_SKIP_CHECKSUM=1")
-    error(table.concat(error_msg, "\n"))
+    return checksum_error(filepath, diagnostics, {
+        "For Git Bash users: Ensure Git for Windows is installed (includes Unix tools)",
+        "For PowerShell users: Requires PowerShell 4.0+ (Windows 8.1+)",
+        "To skip validation (insecure): export MISE_POSTGRES_BINARY_SKIP_CHECKSUM=1",
+    })
 end
 
 local function is_musl_libc()
