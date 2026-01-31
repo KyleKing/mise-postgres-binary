@@ -101,6 +101,7 @@ mise exec "postgres-binary:postgres@$PG_VERSION" -- pg_dump --version
 # Check environment
 eval "$(mise activate bash)"
 mise use "postgres-binary:postgres@$PG_VERSION"
+PGDATA="$(mise env -s bash | grep "^export PGDATA=" | cut -d= -f2- | tr -d '"')"
 echo "PGDATA=$PGDATA"
 [ -d "$PGDATA" ] && echo "PGDATA directory exists" || exit 1
 [ -f "$PGDATA/PG_VERSION" ] && echo "Database initialized" || exit 1

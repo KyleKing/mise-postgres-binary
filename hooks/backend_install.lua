@@ -68,8 +68,8 @@ local function compute_sha256(filepath, os_type)
     diagnostics.unix.attempted = true
     diagnostics.unix.command = unix_cmd
 
-    local ok, output = pcall(cmd.exec, unix_cmd)
-    if ok and output then
+    local output = cmd.exec(unix_cmd)
+    if output and output ~= "" then
         diagnostics.unix.output = output
         local hash = parse_sha256_from_output(output)
         if hash then
@@ -79,7 +79,7 @@ local function compute_sha256(filepath, os_type)
             diagnostics.unix.error = "Command succeeded but output did not contain valid SHA256 hash"
         end
     else
-        diagnostics.unix.error = tostring(output or "Command execution failed (pcall returned false)")
+        diagnostics.unix.error = "Command returned empty output"
     end
 
     if os_type == "windows" then
@@ -90,8 +90,8 @@ local function compute_sha256(filepath, os_type)
         diagnostics.powershell.attempted = true
         diagnostics.powershell.command = ps_cmd
 
-        local ok2, ps_output = pcall(cmd.exec, ps_cmd)
-        if ok2 and ps_output then
+        local ps_output = cmd.exec(ps_cmd)
+        if ps_output and ps_output ~= "" then
             diagnostics.powershell.output = ps_output
             local hash = parse_sha256_from_output(ps_output)
             if hash then
@@ -101,15 +101,15 @@ local function compute_sha256(filepath, os_type)
                 diagnostics.powershell.error = "PowerShell executed but output did not contain valid SHA256 hash"
             end
         else
-            diagnostics.powershell.error = tostring(ps_output or "PowerShell execution failed (pcall returned false)")
+            diagnostics.powershell.error = "PowerShell returned empty output"
         end
 
         local certutil_cmd = string.format('certutil.exe -hashfile "%s" SHA256', filepath:gsub("\\", "/"))
         diagnostics.certutil.attempted = true
         diagnostics.certutil.command = certutil_cmd
 
-        local ok3, certutil_output = pcall(cmd.exec, certutil_cmd)
-        if ok3 and certutil_output then
+        local certutil_output = cmd.exec(certutil_cmd)
+        if certutil_output and certutil_output ~= "" then
             diagnostics.certutil.output = certutil_output
             local hash = parse_sha256_from_output(certutil_output)
             if hash then
@@ -119,7 +119,7 @@ local function compute_sha256(filepath, os_type)
                 diagnostics.certutil.error = "certutil executed but output did not contain valid SHA256 hash"
             end
         else
-            diagnostics.certutil.error = tostring(certutil_output or "certutil execution failed (pcall returned false)")
+            diagnostics.certutil.error = "certutil returned empty output"
         end
 
         local skip_checksum = os.getenv("MISE_POSTGRES_BINARY_SKIP_CHECKSUM")
@@ -203,8 +203,8 @@ local function compute_sha256(filepath, os_type)
 end
 
 local function is_musl_libc()
-    local ok, result = pcall(cmd.exec, "ldd --version 2>&1 || true")
-    if ok and result then
+    local result = cmd.exec("ldd --version 2>&1 || true")
+    if result and result ~= "" then
         if result:match("musl") then
             return true
         end
@@ -397,28 +397,28 @@ local function download_and_verify_postgresql(version, platform, install_path)
             win_dest,
             win_src
         )
-        local ok, move_output = pcall(cmd.exec, move_cmd)
-        if not ok then
+        local move_output = cmd.exec(move_cmd)
+        if move_output and (move_output:match("[Ee]rror") or move_output:match("[Ff]ailed")) then
             local error_msg = {
                 "Failed to move extracted files to install directory (Windows).",
                 string.format("\nSource: %s", win_src),
                 string.format("Destination: %s", win_dest),
                 string.format("Command: %s", move_cmd),
-                string.format("Error: %s", tostring(move_output)),
+                string.format("Error: %s", move_output),
             }
             error(table.concat(error_msg, "\n"))
         end
     else
         local move_cmd =
             string.format('sh -c \'cp -r "%s"/* "%s/" && rm -rf "%s"\'', extracted_dir, install_path, extracted_dir)
-        local ok, move_output = pcall(cmd.exec, move_cmd)
-        if not ok then
+        local move_output = cmd.exec(move_cmd)
+        if move_output and (move_output:match("[Ee]rror") or move_output:match("[Ff]ailed")) then
             local error_msg = {
                 "Failed to move extracted files to install directory (Unix).",
                 string.format("\nSource: %s", extracted_dir),
                 string.format("Destination: %s", install_path),
                 string.format("Command: %s", move_cmd),
-                string.format("Error: %s", tostring(move_output)),
+                string.format("Error: %s", move_output),
             }
             error(table.concat(error_msg, "\n"))
         end
@@ -465,20 +465,7 @@ local function initialize_pgdata(install_path)
     local initdb_cmd = string.format('"%s" -D "%s" --encoding=UTF8 --locale=C', initdb_path, pgdata_path)
 
     print(string.format("Running: %s", initdb_cmd))
-    local ok, result = pcall(cmd.exec, initdb_cmd)
-
-    if not ok then
-        local error_msg = {
-            "initdb command failed to execute.",
-            string.format("\nCommand: %s", initdb_cmd),
-            string.format("Error: %s", tostring(result)),
-            "\nPossible causes:",
-            "  - initdb binary is not executable",
-            "  - Missing system dependencies",
-            "  - Permission issues",
-        }
-        error(table.concat(error_msg, "\n"))
-    end
+    local result = cmd.exec(initdb_cmd)
 
     if result:lower():match("error") or result:lower():match("failed") or result:lower():match("fatal") then
         local error_msg = {
@@ -555,13 +542,13 @@ function PLUGIN:BackendInstall(ctx)
             mkdir_cmd = 'mkdir -p "' .. install_path .. '"'
         end
 
-        local ok, mkdir_output = pcall(cmd.exec, mkdir_cmd)
-        if not ok then
+        local mkdir_output = cmd.exec(mkdir_cmd)
+        if mkdir_output and (mkdir_output:match("[Ee]rror") or mkdir_output:match("[Ff]ailed")) then
             local error_msg = {
                 "Failed to create install directory.",
                 string.format("\nPath: %s", install_path),
                 string.format("Command: %s", mkdir_cmd),
-                string.format("Error: %s", tostring(mkdir_output)),
+                string.format("Error: %s", mkdir_output),
                 "\nPossible causes:",
                 "  - Permission denied",
                 "  - Parent directory does not exist",
@@ -580,42 +567,16 @@ function PLUGIN:BackendInstall(ctx)
         end
     end
 
-    local target_ok, platform_target = pcall(get_rust_target)
-    if not target_ok then
-        local error_msg = {
-            "Failed to determine platform target.",
-            string.format("\nError: %s", tostring(platform_target)),
-            string.format("OS: %s", RUNTIME.osType),
-            string.format("Architecture: %s", RUNTIME.archType),
-        }
-        error(table.concat(error_msg, "\n"))
-    end
+    local platform_target = get_rust_target()
 
     print(string.format("\nPlatform target: %s", platform_target))
     print("\n=== Downloading PostgreSQL ===")
 
-    local download_ok, download_err = pcall(download_and_verify_postgresql, version, platform_target, install_path)
-    if not download_ok then
-        local error_msg = {
-            "PostgreSQL download and verification failed.",
-            string.format("\nVersion: %s", version),
-            string.format("Platform: %s", platform_target),
-            string.format("\nError details:\n%s", tostring(download_err)),
-        }
-        error(table.concat(error_msg, "\n"))
-    end
+    download_and_verify_postgresql(version, platform_target, install_path)
 
     print("\n=== Initializing Database Cluster ===")
 
-    local init_ok, init_err = pcall(initialize_pgdata, install_path)
-    if not init_ok then
-        local error_msg = {
-            "PostgreSQL database initialization failed.",
-            string.format("\nInstall path: %s", install_path),
-            string.format("\nError details:\n%s", tostring(init_err)),
-        }
-        error(table.concat(error_msg, "\n"))
-    end
+    initialize_pgdata(install_path)
 
     print(string.format("\n=== Installation Complete ==="))
     print(string.format("PostgreSQL %s installed successfully", version))
