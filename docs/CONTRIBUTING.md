@@ -93,14 +93,14 @@ mise run ci   # Full CI pipeline
 
 ## Version Management
 
-PostgreSQL versions are managed via `.versions.json`. The update script propagates versions to all dependent files:
+PostgreSQL versions are managed via `scripts/postgres-versions.json`. The sync script propagates versions to all dependent files:
 
 ```sh
 # Check for updates
-./scripts/update-postgres-versions.py --check
+./scripts/sync-postgres-versions.py --check
 
 # Apply updates
-./scripts/update-postgres-versions.py --apply
+./scripts/sync-postgres-versions.py --apply
 ```
 
 ## Verification Checklist

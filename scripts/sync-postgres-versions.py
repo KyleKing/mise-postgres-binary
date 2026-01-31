@@ -3,9 +3,9 @@
 # requires-python = ">=3.11"
 # dependencies = ["httpx"]
 # ///
-"""Update PostgreSQL versions across all project files.
+"""Sync PostgreSQL versions across all project files.
 
-Source of truth: .versions.json (newest/oldest of 5 supported major versions)
+Source of truth: scripts/postgres-versions.json (newest/oldest of 5 supported major versions)
 Updates: ci.yml, docker/docker-bake.hcl, mise.toml, docker/Dockerfile.*
 """
 
@@ -19,7 +19,7 @@ from pathlib import Path
 import httpx
 
 REPO_ROOT = Path(__file__).parent.parent
-VERSIONS_FILE = REPO_ROOT / ".versions.json"
+VERSIONS_FILE = REPO_ROOT / "scripts/postgres-versions.json"
 CI_WORKFLOW = REPO_ROOT / ".github/workflows/ci.yml"
 DOCKER_BAKE = REPO_ROOT / "docker/docker-bake.hcl"
 MISE_TOML = REPO_ROOT / "mise.toml"
@@ -88,14 +88,14 @@ def get_recommended_versions(available: dict[int, str]) -> dict[str, str]:
 
 
 def read_versions_file() -> dict[str, str]:
-    """Read current versions from .versions.json."""
+    """Read current versions from scripts/postgres-versions.json."""
     if not VERSIONS_FILE.exists():
         return {"newest": "", "oldest": ""}
     return json.loads(VERSIONS_FILE.read_text())
 
 
 def write_versions_file(versions: dict[str, str]) -> None:
-    """Write versions to .versions.json."""
+    """Write versions to scripts/postgres-versions.json."""
     content = json.dumps(versions, indent=2) + "\n"
     VERSIONS_FILE.write_text(content)
 
@@ -222,7 +222,7 @@ def main() -> int:
     current = read_versions_file()
 
     print()
-    print("=== Current .versions.json ===")
+    print("=== Current scripts/postgres-versions.json ===")
     print(f"  newest: {current.get('newest', 'N/A')}")
     print(f"  oldest: {current.get('oldest', 'N/A')}")
 
@@ -258,7 +258,7 @@ def main() -> int:
         print("Applying updates...")
 
         write_versions_file(recommended)
-        print("  .versions.json: updated")
+        print("  scripts/postgres-versions.json: updated")
 
         updated_ci = update_ci_workflow(recommended)
         print(f"  .github/workflows/ci.yml: {'updated' if updated_ci else 'no changes'}")

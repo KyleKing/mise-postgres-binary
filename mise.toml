@@ -168,11 +168,11 @@ fi
 
 [tasks.versions-update-apply]
 description = "Apply PostgreSQL version updates to CI matrix"
-run = "./scripts/update-postgres-versions.py --apply"
+run = "./scripts/sync-postgres-versions.py --apply"
 
 [tasks.versions-update-check]
 description = "Check for new PostgreSQL versions and recommend CI matrix updates"
-run = "./scripts/update-postgres-versions.py"
+run = "./scripts/sync-postgres-versions.py"
 
 [tools]
 actionlint = "latest"

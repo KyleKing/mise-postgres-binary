@@ -1,4 +1,5 @@
 [tool.commitizen]
+changelog_file = "docs/CHANGELOG.md"
 major_version_zero = true
 name = "cz_conventional_commits"
 tag_format = "$version"
