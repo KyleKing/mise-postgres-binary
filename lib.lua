@@ -15,9 +15,6 @@ function M.is_valid_sha256(str)
     return trimmed:match("^%x+$") ~= nil and #trimmed == 64
 end
 
---- Find the first 64-character hex sequence in output, returned lowercase.
---- Handles plain hash, sha256sum/awk output with trailing newline, and
---- CertUtil multi-line output.
 function M.parse_sha256_from_output(output)
     if not output then
         return nil
@@ -50,11 +47,6 @@ local RUST_TARGETS = {
     ["windows-amd64"] = "x86_64-pc-windows-msvc",
 }
 
---- Map OS, architecture, and optional musl flag to a Rust target triple.
---- @param os_type string Lowercase OS name (darwin, linux, windows)
---- @param arch_type string Architecture (amd64, arm64, 386)
---- @param is_musl boolean|nil Whether the system uses musl libc
---- @return string|nil Rust target triple or nil if unsupported
 function M.get_rust_target(os_type, arch_type, is_musl)
     if os_type == "linux" then
         local suffix = is_musl and "musl" or "gnu"

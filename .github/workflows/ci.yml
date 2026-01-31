@@ -7,12 +7,10 @@ on:
     branches: [main, master]
   workflow_dispatch:
 
-# Cancel in-progress runs when a new workflow on the same PR/branch is started
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
-# Minimal permissions for security
 permissions:
   contents: read
 
@@ -30,7 +28,6 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y lua5.4 liblua5.4-dev luarocks
-      # Cache LuaRocks dependencies
       - uses: actions/cache@v5
         with:
           path: .luarocks

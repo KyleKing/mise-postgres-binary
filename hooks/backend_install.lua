@@ -49,39 +49,6 @@ end
 --- @param filepath string Path to file (forward or backward slashes)
 --- @param os_type string Operating system type from RUNTIME.osType
 --- @return string|nil SHA256 hash (64-char lowercase hex string), or nil if skipped
----
---- System Dependencies:
----
---- Unix/Linux/macOS:
----   - sha256sum (GNU coreutils) OR shasum (macOS/BSD)
----   - awk (standard on all Unix systems)
----
---- Windows:
----   Primary: Unix tools via Git Bash (GitHub Actions, MSYS2, Cygwin)
----     - sha256sum, awk (provided by Git for Windows)
----   Fallback 1: PowerShell (Windows 7+, direct invocation)
----     - Get-FileHash cmdlet (PowerShell 4.0+)
----   Fallback 2: certutil (Windows Vista+, direct invocation)
----     - certutil.exe -hashfile
----
---- Platform Strategy:
----   1. Try Unix tools first (sha256sum/shasum + awk)
----      - Works on native Unix/Linux/macOS
----      - Also works on Windows with Git Bash (most CI environments)
----   2. On Windows if Unix tools fail:
----      - Try PowerShell directly (invoked without cmd.exe wrapper)
----      - Try certutil directly (legacy fallback)
----
---- Path Handling:
----   - Unix tools accept forward slashes on all platforms
----   - Windows PowerShell and certutil accept forward slashes
----   - Paths normalized to forward slashes for consistency
----
---- Error Handling:
----   - Throws error if file doesn't exist
----   - Throws error with diagnostic output if all methods fail
----   - Shows attempted output from each tool for debugging
----   - Can skip validation with MISE_POSTGRES_BINARY_SKIP_CHECKSUM=1 (prints warning)
 local function compute_sha256(filepath, os_type)
     if not file.exists(filepath) then
         error(string.format("Cannot compute checksum: file does not exist: %s", filepath))

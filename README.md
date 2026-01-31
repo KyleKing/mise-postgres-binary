@@ -1,15 +1,6 @@
 # mise-postgres-binary
 
-mise backend plugin for installing PostgreSQL from pre-built binaries.
-
-## Features
-
-- **Fast installations**: Pre-built binaries, no compilation required
-- **Precise version control**: Install specific PostgreSQL versions (e.g., 15.10.0)
-- **Secure**: SHA256 checksum verification for all downloads
-- **Cross-platform**: macOS (Intel/Apple Silicon), Linux (x86_64/arm64, glibc/musl), Windows
-- **PostgreSQL-aware**: Automatic PGDATA setup and initdb execution
-- **Low maintenance**: Simple Lua implementation
+mise backend plugin for installing PostgreSQL from pre-built binaries. Fast cross-platform installs with SHA256 verification and automatic PGDATA setup -- no compiler toolchain needed. Use a source-build plugin like [mise-postgres](https://github.com/kyleking/mise-postgres) if you need custom `./configure` options.
 
 ## Installation
 
@@ -63,11 +54,10 @@ reduce GitHub API calls.
 
 - Override TTL: `export MISE_POSTGRES_BINARY_CACHE_TTL=3600` (seconds; 0 disables)
 - Clear mise cache: `mise cache clear`
-- CI: `jdx/mise-action` automatically provides `GITHUB_TOKEN`
 
 ## Supported Platforms
 
-Binaries are sourced from [theseus-rs/postgresql-binaries](https://github.com/theseus-rs/postgresql-binaries):
+Binaries are sourced from [theseus-rs/postgresql-binaries](https://github.com/theseus-rs/postgresql-binaries). See [their releases](https://github.com/theseus-rs/postgresql-binaries/releases) for the latest supported versions and platforms.
 
 | Platform | Architecture | Target Triple |
 |----------|--------------|---------------|
@@ -90,7 +80,6 @@ SHA256 checksum verification requires platform-specific tools:
 **Windows:**
 - **Primary**: Unix tools via Git Bash (Git for Windows, MSYS2, Cygwin)
   - `sha256sum`, `awk` - provided by Git for Windows
-  - Works in GitHub Actions and most CI environments
 - **Fallback 1**: PowerShell (Windows 7+)
   - `Get-FileHash` cmdlet (PowerShell 4.0+)
 - **Fallback 2**: `certutil.exe` (Windows Vista+)
@@ -100,41 +89,12 @@ The plugin tries Unix tools first (works everywhere including Git Bash on Window
 **Skip Checksum Validation (Not Recommended):**
 
 If none of the hash tools are available, you can skip checksum verification:
-```bash
+
+```sh
 export MISE_POSTGRES_BINARY_SKIP_CHECKSUM=1
 ```
 
 **WARNING**: Skipping checksum validation is insecure and not recommended. Use only in environments where hash tools cannot be installed and you trust the network connection.
-
-## Supported PostgreSQL Versions
-
-- PostgreSQL 18.x
-- PostgreSQL 17.x
-- PostgreSQL 16.x
-- PostgreSQL 15.x
-- PostgreSQL 14.x
-- PostgreSQL 13.x
-
-See [theseus-rs/postgresql-binaries releases](https://github.com/theseus-rs/postgresql-binaries/releases) for the complete list.
-
-## How It Works
-
-1. **Version Discovery**: Queries GitHub API for available PostgreSQL releases
-2. **Platform Detection**: Detects OS and architecture to select correct binary
-3. **libc Detection**: On Linux, detects glibc vs musl
-4. **Download & Verify**: Fetches binary and verifies SHA256 checksum
-5. **Initialization**: Runs `initdb` to create PostgreSQL data directory
-6. **Environment Setup**: Configures PGDATA, PATH, and library paths
-
-## Comparison with Source Builds
-
-| Feature | Binary Installation | Source Build |
-|---------|-------------------|--------------|
-| **Installation Time** | ~10 seconds | ~5-15 minutes |
-| **Build Dependencies** | None | gcc, make, openssl-dev, etc. |
-| **Platform Patches** | Not needed | ICU, UUID-OSSP patches |
-| **Disk Space** | ~50 MB | ~200+ MB (with build files) |
-| **Customization** | Pre-built config | Full control via ./configure |
 
 ## Troubleshooting
 
@@ -155,7 +115,8 @@ This usually indicates a corrupted download. Try:
 3. Reinstall: `mise install postgres-binary:postgres@<version>`
 
 If hash tools are unavailable in your environment, you can skip validation (insecure):
-```bash
+
+```sh
 export MISE_POSTGRES_BINARY_SKIP_CHECKSUM=1
 mise install postgres-binary:postgres@<version>
 ```
@@ -168,28 +129,18 @@ If you see "PGDATA directory already exists", the database cluster is already in
 
 Check logs and port availability:
 
-```bash
+```sh
 cat /tmp/postgres.log
 lsof -i :5432
-pg_ctl start -D "$PGDATA" -o "-p 5433" -l /tmp/postgres.log  # Use alternate port
+pg_ctl start -D "$PGDATA" -o "-p 5433" -l /tmp/postgres.log # Use alternate port
 ```
 
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup and guidelines.
 
-## License
-
-MIT License - see LICENSE file for details
-
 ## Credits
 
 - Binaries provided by [theseus-rs/postgresql-binaries](https://github.com/theseus-rs/postgresql-binaries)
 - Plugin template from [mise-backend-plugin-template](https://github.com/jdx/mise-backend-plugin-template)
 - Inspired by [mise-postgres](https://github.com/kyleking/mise-postgres) (source-based)
-
-## Links
-
-- [mise documentation](https://mise.jdx.dev/)
-- [Backend plugin development guide](https://mise.jdx.dev/backend-plugin-development.html)
-- [PostgreSQL official documentation](https://www.postgresql.org/docs/)

@@ -28,7 +28,6 @@ variable "GITHUB_TOKEN" {
   default = ""
 }
 
-# Reusable functions
 function "make_tag" {
   params = [distro, version_key, arch]
   result = arch == "amd64" ? "mise-postgres-${distro}-${version_key}" : "mise-postgres-${distro}-${arch}-${version_key}"
@@ -42,7 +41,6 @@ function "cache_config" {
   }
 }
 
-# Base target configurations
 target "_base" {
   context = "."
   pull    = true
@@ -65,7 +63,6 @@ target "_alpine" {
   platforms  = [PLATFORMS.amd64]
 }
 
-# Debian (glibc) targets
 group "debian" {
   targets = ["debian-pg14", "debian-pg18"]
 }
@@ -82,7 +79,6 @@ target "debian-pg18" {
   tags     = [make_tag("debian", "pg18", "amd64")]
 }
 
-# Alpine (musl) targets
 group "alpine" {
   targets = ["alpine-pg14", "alpine-pg18"]
 }
@@ -99,7 +95,6 @@ target "alpine-pg18" {
   tags     = [make_tag("alpine", "pg18", "amd64")]
 }
 
-# ARM64 targets
 group "arm64" {
   targets = ["debian-arm64-pg14", "alpine-arm64-pg14"]
 }
@@ -118,7 +113,6 @@ target "alpine-arm64-pg14" {
   tags      = [make_tag("alpine", "pg14", "arm64")]
 }
 
-# Target groups
 group "default" {
   targets = ["debian", "alpine"]
 }

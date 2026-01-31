@@ -2,7 +2,7 @@
 
 ## Development Setup
 
-```bash
+```sh
 # Clone the repository
 git clone https://github.com/kyleking/mise-postgres-binary
 cd mise-postgres-binary
@@ -10,56 +10,36 @@ cd mise-postgres-binary
 # Install development tools
 mise install
 
-# Link plugin for local testing
-mise plugin link --force postgres-binary "$PWD"
-```
-
-## Project Structure
-
-```
-mise-postgres-binary/
-├── hooks/
-│   ├── backend_list_versions.lua  # Fetch versions from GitHub API
-│   ├── backend_install.lua        # Download, verify, extract, initdb
-│   └── backend_exec_env.lua       # Set environment variables
-├── scripts/
-│   └── update-postgres-versions.py  # Version update automation
-├── test/
-│   ├── Dockerfile.debian          # Debian (glibc) test container
-│   ├── Dockerfile.alpine          # Alpine (musl) test container
-│   └── run-docker-tests.sh        # Docker test runner
-├── .github/workflows/ci.yml       # CI/CD pipeline
-├── .versions.json                 # Source of truth for PostgreSQL versions
-├── docker-bake.hcl                # Docker Buildx Bake configuration
-├── hk.pkl                         # Pre-commit hooks
-├── mise.toml                      # Development tools and tasks
-├── metadata.lua                   # Plugin metadata
-└── stylua.toml                    # Lua formatter configuration
-```
-
-## Available Tasks
-
-```bash
-mise run format              # Format Lua code with stylua
-mise run lint                # Run all linters (selene, stylua, actionlint)
-mise run test                # Quick test (link plugin, list versions)
-mise run test-install        # Full test with database operations
-mise run test-docker         # Run Docker-based tests
-mise run test-version-matrix # Test oldest and newest PostgreSQL versions
-mise run ci                  # Full CI pipeline (lint + test)
-mise run clean               # Clean up test installations
-mise run check-versions      # Check for new PostgreSQL versions
-mise run update-versions     # Apply PostgreSQL version updates
+# Interactively see all options
+mise run
 ```
 
 ## Testing
 
+### GitHub Token for Development
+
+When developing the plugin, you may frequently clear caches and list versions, which can hit GitHub API rate limits (60 requests/hour unauthenticated).
+
+```sh
+export GITHUB_TOKEN=$(gh auth token) # Requires the GitHub CLI
+
+# mise cache clear
+# mise ls-remote postgres-binary:postgres | head -5
+```
+
+**Note:** both this plugin and mise cache version lists so that end-users do not need to export a token, but doing so for local development, CI, and Docker tests is recommended.
+
 ### Local Testing
+
+Ensure plugin is linked for local testing:
+
+```sh
+mise plugin link --force postgres-binary "$PWD"
+```
 
 Quick test:
 
-```bash
-mise plugin link --force postgres-binary "$PWD"
+```sh
 mise ls-remote postgres-binary:postgres | head -10
 mise install postgres-binary:postgres@14.20.0
 mise exec postgres-binary:postgres@14.20.0 -- postgres --version
@@ -67,11 +47,10 @@ mise exec postgres-binary:postgres@14.20.0 -- postgres --version
 
 Full test with database operations:
 
-```bash
-mise plugin link --force postgres-binary "$PWD"
+```sh
 mise install postgres-binary:postgres@18.1.0
 
-eval "$(mise activate bash)"
+eval "$(mise activate zsh)"
 mise use postgres-binary:postgres@18.1.0
 
 echo "PGDATA: $PGDATA"
@@ -82,39 +61,11 @@ psql -c "SELECT version();" postgres
 pg_ctl stop -D "$PGDATA" -m fast
 ```
 
-### GitHub Token for Development
-
-When developing the plugin, you may frequently clear caches and list versions, which can hit GitHub API rate limits (60 requests/hour unauthenticated).
-
-**Set up a token:**
-
-1. Create a GitHub Personal Access Token:
-   - Go to https://github.com/settings/tokens
-   - Click "Generate new token (classic)"
-   - No scopes needed (public repo access only)
-   - Copy the token
-
-2. Export in your shell:
-   ```bash
-   export GITHUB_TOKEN=$(gh auth token)  # If using gh CLI
-   # Or manually:
-   export GITHUB_TOKEN="ghp_your_token_here"
-   # Add to ~/.bashrc or ~/.zshrc for persistence
-   ```
-
-3. Verify it works:
-   ```bash
-   mise cache clear
-   mise ls-remote postgres-binary:postgres | head -5
-   ```
-
-**Note:** End-users rarely need this token because mise caches version lists. This is primarily for plugin development, CI, and Docker tests.
-
 ### Docker Testing
 
 Docker tests verify the plugin works on different Linux distributions. Set `GITHUB_TOKEN` as shown above to avoid rate limits:
 
-```bash
+```sh
 # Build and test all targets
 docker buildx bake
 
@@ -126,49 +77,25 @@ docker run --rm mise-postgres-debian-pg14
 docker buildx bake --print
 ```
 
-Available target groups:
-
-| Group | Targets |
-|-------|---------|
-| `ci` | debian-pg14, alpine-pg14 |
-| `debian` | debian-pg14, debian-pg18 |
-| `alpine` | alpine-pg14, alpine-pg18 |
-| `arm64` | debian-arm64-pg14, alpine-arm64-pg14 |
-| `all` | All targets |
+See `docker-bake.hcl` for available target groups.
 
 ### CI Pipeline
 
-The GitHub Actions workflow tests:
-
-| Platform | PostgreSQL Versions |
-|----------|---------------------|
-| Ubuntu (latest) | 14.x, 18.x |
-| macOS (latest) | 14.x, 18.x |
-| Docker (Debian/Alpine) | 14.x |
-| Windows (experimental) | 14.x |
+See `.github/workflows/ci.yml` for tested platforms and PostgreSQL versions.
 
 Run CI checks locally:
 
-```bash
-mise run lint    # Run linters
-mise run test    # Quick test
-mise run ci      # Full CI pipeline
+```sh
+mise run lint # Run linters
+mise run test # Quick test
+mise run ci   # Full CI pipeline
 ```
 
 ## Version Management
 
-PostgreSQL versions are managed via `.versions.json`:
+PostgreSQL versions are managed via `.versions.json`. The update script propagates versions to all dependent files:
 
-```json
-{
-  "newest": "18.1.0",
-  "oldest": "14.20.0"
-}
-```
-
-The update script propagates versions to all dependent files:
-
-```bash
+```sh
 # Check for updates
 ./scripts/update-postgres-versions.py --check
 
@@ -176,18 +103,12 @@ The update script propagates versions to all dependent files:
 ./scripts/update-postgres-versions.py --apply
 ```
 
-Updated files:
-- `.github/workflows/ci.yml`
-- `docker-bake.hcl`
-- `mise.toml`
-- `test/Dockerfile.*`
-
 ## Verification Checklist
 
 Before submitting changes:
 
 - [ ] `mise run lint` passes
-- [ ] Local installation works: `mise install postgres-binary:postgres@14.20.0`
+- [ ] Local installation works: `mise install postgres-binary:postgres@<version>`
 - [ ] Binary verification: `postgres --version`, `psql --version`
 - [ ] Environment setup: `$PGDATA` exists and is initialized
 - [ ] Database operations: can start, query, and stop PostgreSQL
@@ -197,21 +118,21 @@ Before submitting changes:
 
 ### Plugin Not Found
 
-```bash
+```sh
 mise plugin uninstall postgres-binary
 mise plugin link --force postgres-binary "$PWD"
 ```
 
 ### Version Not Installing
 
-```bash
+```sh
 mise ls-remote postgres-binary:postgres
 MISE_DEBUG=1 mise install postgres-binary:postgres@14.20.0
 ```
 
 ### Docker Build Fails
 
-```bash
+```sh
 docker buildx prune -f
 docker buildx bake --no-cache debian-pg14
 ```
@@ -220,11 +141,3 @@ docker buildx bake --no-cache debian-pg14
 
 Follow [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `docs:`, etc.).
 Commits to `main` trigger automatic version bumping via [commitizen](https://commitizen-tools.github.io/commitizen/),
-updating `metadata.lua`, `CHANGELOG.md`, and creating GitHub releases.
-
-## How to Contribute
-
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feat/your-feature`
-3. Run `mise run lint` and `mise run test-install` before submitting
-4. Submit a pull request

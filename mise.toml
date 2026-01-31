@@ -1,5 +1,3 @@
-# mise configuration for development tools and tasks
-
 [env]
 MISE_USE_VERSIONS_HOST = "0"
 _.path = [".luarocks/bin"]
