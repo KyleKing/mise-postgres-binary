@@ -45,11 +45,18 @@ local function normalize_path(path, os_type)
     return path
 end
 
-local function try_checksum_cmd(command, diagnostics, method)
+local function try_checksum_cmd(command, diagnostics, method, os_type)
     diagnostics[method].attempted = true
     diagnostics[method].command = command
 
-    local output = cmd.exec(command)
+    local wrapped_cmd
+    if os_type == "windows" then
+        wrapped_cmd = string.format('cmd.exe /c "%s 2>nul" || echo.', command)
+    else
+        wrapped_cmd = command
+    end
+
+    local output = cmd.exec(wrapped_cmd)
     if output and output ~= "" then
         diagnostics[method].output = output
         local hash = parse_sha256_from_output(output)
@@ -59,7 +66,7 @@ local function try_checksum_cmd(command, diagnostics, method)
         end
         diagnostics[method].error = "Command succeeded but output did not contain valid SHA256 hash"
     else
-        diagnostics[method].error = "Command returned empty output"
+        diagnostics[method].error = "Command returned empty output or command failed"
     end
     return nil
 end
@@ -138,7 +145,7 @@ local function compute_sha256(filepath, os_type)
             filepath,
             filepath
         )
-        local hash = try_checksum_cmd(unix_cmd, diagnostics, "unix")
+        local hash = try_checksum_cmd(unix_cmd, diagnostics, "unix", os_type)
         if hash then
             return hash
         end
@@ -155,13 +162,13 @@ local function compute_sha256(filepath, os_type)
         "powershell.exe -NoProfile -ExecutionPolicy Bypass -Command \"(Get-FileHash -Algorithm SHA256 -Path '%s').Hash\"",
         forward_path
     )
-    local ps_hash = try_checksum_cmd(ps_cmd, diagnostics, "powershell")
+    local ps_hash = try_checksum_cmd(ps_cmd, diagnostics, "powershell", os_type)
     if ps_hash then
         return ps_hash
     end
 
     local certutil_cmd = string.format('certutil.exe -hashfile "%s" SHA256', forward_path)
-    local certutil_hash = try_checksum_cmd(certutil_cmd, diagnostics, "certutil")
+    local certutil_hash = try_checksum_cmd(certutil_cmd, diagnostics, "certutil", os_type)
     if certutil_hash then
         return certutil_hash
     end
