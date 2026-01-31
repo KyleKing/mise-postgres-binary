@@ -11,21 +11,47 @@ local function _cleanup(dir)
     os.execute('rm -rf "' .. dir .. '"')
 end
 
+local function _mock_env(overrides)
+    local orig_getenv = os.getenv
+    os.getenv = function(name)
+        if overrides[name] ~= nil then
+            return overrides[name]
+        end
+        return orig_getenv(name)
+    end
+    return orig_getenv
+end
+
+local function _restore_env(orig_getenv)
+    os.getenv = orig_getenv
+end
+
+local function _setup_temp_cache()
+    local tmp = _temp_dir()
+    local orig_get_cache_dir = github_cache.get_cache_dir
+    github_cache.get_cache_dir = function()
+        return tmp
+    end
+    return tmp, orig_get_cache_dir
+end
+
+local function _teardown_temp_cache(tmp, orig_get_cache_dir)
+    github_cache.get_cache_dir = orig_get_cache_dir
+    _cleanup(tmp)
+end
+
 describe("github_cache", function()
     describe("get_cache_dir", function()
-        local orig_getenv = os.getenv
+        local orig_getenv
 
         after_each(function()
-            os.getenv = orig_getenv
+            if orig_getenv then
+                _restore_env(orig_getenv)
+            end
         end)
 
         it("uses XDG_CACHE_HOME when set", function()
-            os.getenv = function(name)
-                if name == "XDG_CACHE_HOME" then
-                    return "/custom/cache"
-                end
-                return orig_getenv(name)
-            end
+            orig_getenv = _mock_env({ XDG_CACHE_HOME = "/custom/cache" })
             assert.are.equal("/custom/cache/mise/postgres-binary", github_cache.get_cache_dir())
         end)
 
@@ -38,10 +64,12 @@ describe("github_cache", function()
     end)
 
     describe("is_cache_valid", function()
-        local orig_getenv = os.getenv
+        local orig_getenv
 
         after_each(function()
-            os.getenv = orig_getenv
+            if orig_getenv then
+                _restore_env(orig_getenv)
+            end
         end)
 
         it("returns false for nil cache_data", function()
@@ -63,43 +91,28 @@ describe("github_cache", function()
         end)
 
         it("respects MISE_POSTGRES_BINARY_CACHE_TTL override", function()
-            os.getenv = function(name)
-                if name == "MISE_POSTGRES_BINARY_CACHE_TTL" then
-                    return "1"
-                end
-                return orig_getenv(name)
-            end
+            orig_getenv = _mock_env({ MISE_POSTGRES_BINARY_CACHE_TTL = "1" })
             local data = { timestamp = os.time() - 2, versions = { "18.1.0" } }
             assert.is_false(github_cache.is_cache_valid(data))
         end)
 
         it("returns false when TTL is zero", function()
-            os.getenv = function(name)
-                if name == "MISE_POSTGRES_BINARY_CACHE_TTL" then
-                    return "0"
-                end
-                return orig_getenv(name)
-            end
+            orig_getenv = _mock_env({ MISE_POSTGRES_BINARY_CACHE_TTL = "0" })
             local data = { timestamp = os.time(), versions = { "18.1.0" } }
             assert.is_false(github_cache.is_cache_valid(data))
         end)
     end)
 
     describe("get_cache", function()
-        local orig_get_cache_dir
         local tmp
+        local orig_get_cache_dir
 
         before_each(function()
-            tmp = _temp_dir()
-            orig_get_cache_dir = github_cache.get_cache_dir
-            github_cache.get_cache_dir = function()
-                return tmp
-            end
+            tmp, orig_get_cache_dir = _setup_temp_cache()
         end)
 
         after_each(function()
-            github_cache.get_cache_dir = orig_get_cache_dir
-            _cleanup(tmp)
+            _teardown_temp_cache(tmp, orig_get_cache_dir)
         end)
 
         it("returns nil when no cache file exists", function()
@@ -141,20 +154,15 @@ describe("github_cache", function()
     end)
 
     describe("set_cache", function()
-        local orig_get_cache_dir
         local tmp
+        local orig_get_cache_dir
 
         before_each(function()
-            tmp = _temp_dir()
-            orig_get_cache_dir = github_cache.get_cache_dir
-            github_cache.get_cache_dir = function()
-                return tmp
-            end
+            tmp, orig_get_cache_dir = _setup_temp_cache()
         end)
 
         after_each(function()
-            github_cache.get_cache_dir = orig_get_cache_dir
-            _cleanup(tmp)
+            _teardown_temp_cache(tmp, orig_get_cache_dir)
         end)
 
         it("writes cache file that can be read back", function()
@@ -177,20 +185,15 @@ describe("github_cache", function()
     end)
 
     describe("touch_cache", function()
-        local orig_get_cache_dir
         local tmp
+        local orig_get_cache_dir
 
         before_each(function()
-            tmp = _temp_dir()
-            orig_get_cache_dir = github_cache.get_cache_dir
-            github_cache.get_cache_dir = function()
-                return tmp
-            end
+            tmp, orig_get_cache_dir = _setup_temp_cache()
         end)
 
         after_each(function()
-            github_cache.get_cache_dir = orig_get_cache_dir
-            _cleanup(tmp)
+            _teardown_temp_cache(tmp, orig_get_cache_dir)
         end)
 
         it("updates timestamp without changing versions", function()

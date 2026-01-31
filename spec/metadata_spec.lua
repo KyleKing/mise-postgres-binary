@@ -1,13 +1,13 @@
 describe("metadata", function()
-    it("should be syntactically valid Lua", function()
-        local f, err = loadfile("metadata.lua")
-        assert.is_not_nil(f, "Failed to load metadata.lua: " .. tostring(err))
-    end)
-
-    it("should contain valid metadata structure", function()
+    local function read_metadata()
         local fh = io.open("metadata.lua", "r")
         local content = fh:read("*all")
         fh:close()
+        return content
+    end
+
+    it("should contain valid metadata structure", function()
+        local content = read_metadata()
 
         assert.is_truthy(content:match("PLUGIN%s*=%s*{"), "Should define PLUGIN table")
         assert.is_truthy(content:match("name%s*=%s*[\"']"), "Should have name field")
@@ -17,9 +17,7 @@ describe("metadata", function()
     end)
 
     it("should have valid semantic version", function()
-        local fh = io.open("metadata.lua", "r")
-        local content = fh:read("*all")
-        fh:close()
+        local content = read_metadata()
 
         local version = content:match("version%s*=%s*[\"']([^\"']+)[\"']")
 

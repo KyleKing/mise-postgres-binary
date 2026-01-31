@@ -199,5 +199,17 @@ describe("lib", function()
         it("handles already Unix-style paths", function()
             assert.are.equal("/home/test/file", lib.windows_to_unix_path("/home/test/file"))
         end)
+
+        it("handles UNC paths", function()
+            assert.are.equal("//server/share/file", lib.windows_to_unix_path("\\\\server\\share\\file"))
+        end)
+
+        it("handles relative paths", function()
+            assert.are.equal("relative/path/to/file", lib.windows_to_unix_path("relative\\path\\to\\file"))
+        end)
+
+        it("handles paths with spaces", function()
+            assert.are.equal("/c/Program Files/test", lib.windows_to_unix_path("C:\\Program Files\\test"))
+        end)
     end)
 end)

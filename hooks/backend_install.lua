@@ -4,48 +4,6 @@ local http = require("http")
 local archiver = require("archiver")
 local lib = require("hooks.lib")
 
-local RUST_TARGETS = {
-    ["darwin-amd64"] = "x86_64-apple-darwin",
-    ["darwin-arm64"] = "aarch64-apple-darwin",
-    ["linux-amd64-gnu"] = "x86_64-unknown-linux-gnu",
-    ["linux-amd64-musl"] = "x86_64-unknown-linux-musl",
-    ["linux-arm64-gnu"] = "aarch64-unknown-linux-gnu",
-    ["linux-arm64-musl"] = "aarch64-unknown-linux-musl",
-    ["linux-386-gnu"] = "i686-unknown-linux-gnu",
-    ["linux-386-musl"] = "i686-unknown-linux-musl",
-    ["windows-amd64"] = "x86_64-pc-windows-msvc",
-}
-
-local function parse_sha256_from_output(output)
-    if not output then
-        return nil
-    end
-    for hex_sequence in output:gmatch("%x+") do
-        if #hex_sequence == 64 then
-            return hex_sequence:lower()
-        end
-    end
-    return nil
-end
-
-local function lookup_rust_target(os_type, arch_type, is_musl)
-    if os_type == "linux" then
-        local suffix = is_musl and "musl" or "gnu"
-        return RUST_TARGETS[os_type .. "-" .. arch_type .. "-" .. suffix]
-    end
-    return RUST_TARGETS[os_type .. "-" .. arch_type]
-end
-
-local function normalize_path(path, os_type)
-    if not path then
-        return nil
-    end
-    if os_type == "windows" then
-        return path:gsub("/", "\\")
-    end
-    return path
-end
-
 local function try_checksum_cmd(command, diagnostics, method, os_type)
     diagnostics[method].attempted = true
     diagnostics[method].command = command
@@ -54,7 +12,7 @@ local function try_checksum_cmd(command, diagnostics, method, os_type)
 
     if output and output ~= "" then
         diagnostics[method].output = output
-        local hash = parse_sha256_from_output(output)
+        local hash = lib.parse_sha256_from_output(output)
         if hash then
             diagnostics[method].success = true
             return hash
@@ -195,7 +153,7 @@ local function get_rust_target()
     local arch_type = RUNTIME.archType
     local is_musl = os_type == "linux" and is_musl_libc() or false
 
-    local target = lookup_rust_target(os_type, arch_type, is_musl)
+    local target = lib.get_rust_target(os_type, arch_type, is_musl)
     if not target then
         local libc_info = ""
         if os_type == "linux" then
@@ -253,7 +211,7 @@ local function download_and_verify_postgresql(version, platform, install_path)
         error(table.concat(error_msg, "\n"))
     end
 
-    local expected_sha256 = parse_sha256_from_output(checksum_resp.body)
+    local expected_sha256 = lib.parse_sha256_from_output(checksum_resp.body)
     if not expected_sha256 then
         local error_msg = {
             "Invalid checksum format in downloaded checksum file.",
@@ -384,8 +342,8 @@ local function download_and_verify_postgresql(version, platform, install_path)
             if has_unix_shell then
                 print("Unix command failed, falling back to PowerShell")
             end
-            local win_src = normalize_path(extracted_dir, os_type)
-            local win_dest = normalize_path(install_path, os_type)
+            local win_src = lib.normalize_path(extracted_dir, os_type)
+            local win_dest = lib.normalize_path(install_path, os_type)
             move_cmd = string.format(
                 "powershell.exe -NoProfile -ExecutionPolicy Bypass -Command \"Copy-Item -Path '%s\\*' -Destination '%s' -Recurse -Force; Remove-Item -Path '%s' -Recurse -Force\"",
                 win_src,
@@ -417,10 +375,10 @@ local function download_and_verify_postgresql(version, platform, install_path)
                 ls_cmd = string.format(
                     'ls -la "%s" 2>&1 || dir "%s" 2>&1',
                     unix_install_path,
-                    normalize_path(install_path, os_type)
+                    lib.normalize_path(install_path, os_type)
                 )
             else
-                ls_cmd = string.format('dir "%s" 2>&1', normalize_path(install_path, os_type))
+                ls_cmd = string.format('dir "%s" 2>&1', lib.normalize_path(install_path, os_type))
             end
             local ls_output = cmd.exec(ls_cmd) or "(failed to list directory)"
 
@@ -494,8 +452,8 @@ local function initialize_pgdata(install_path)
         error(table.concat(error_msg, "\n"))
     end
 
-    local initdb_path = os_type == "windows" and normalize_path(initdb_bin, os_type) or initdb_bin
-    local pgdata_path = os_type == "windows" and normalize_path(pgdata_dir, os_type) or pgdata_dir
+    local initdb_path = os_type == "windows" and lib.normalize_path(initdb_bin, os_type) or initdb_bin
+    local pgdata_path = os_type == "windows" and lib.normalize_path(pgdata_dir, os_type) or pgdata_dir
     local initdb_cmd = string.format('"%s" -D "%s" --encoding=UTF8 --locale=C', initdb_path, pgdata_path)
 
     print(string.format("Running: %s", initdb_cmd))
@@ -571,7 +529,7 @@ function PLUGIN:BackendInstall(ctx)
         local os_type = RUNTIME.osType:lower()
         local mkdir_cmd
         if os_type == "windows" then
-            mkdir_cmd = 'mkdir "' .. normalize_path(install_path, os_type) .. '"'
+            mkdir_cmd = 'mkdir "' .. lib.normalize_path(install_path, os_type) .. '"'
         else
             mkdir_cmd = 'mkdir -p "' .. install_path .. '"'
         end
