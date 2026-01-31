@@ -66,9 +66,13 @@ jobs:
         run: mise plugin link --force postgres-binary "$PWD"
 
       - name: List available versions
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: mise ls-remote postgres-binary:postgres | head -10
 
       - name: Install PostgreSQL ${{ matrix.pg_version }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: mise install postgres-binary:postgres@${{ matrix.pg_version }}
 
       - name: Verify binaries
@@ -145,10 +149,14 @@ jobs:
 
       - name: List available versions
         shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: mise ls-remote postgres-binary:postgres | head -10
 
       - name: Install PostgreSQL
         shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: mise install postgres-binary:postgres@14.20.0
 
       - name: Verify binaries

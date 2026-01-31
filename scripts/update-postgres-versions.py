@@ -31,7 +31,10 @@ MIN_MAJOR_VERSION = 13
 def fetch_available_versions() -> dict[int, str]:
     """Fetch latest patch version for each major from theseus-rs/postgresql-binaries."""
     url = "https://api.github.com/repos/theseus-rs/postgresql-binaries/releases?per_page=100"
-    resp = httpx.get(url, timeout=30)
+    headers = {}
+    if github_token := os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN"):
+        headers["Authorization"] = f"Bearer {github_token}"
+    resp = httpx.get(url, headers=headers if headers else None, timeout=30)
     resp.raise_for_status()
 
     releases = resp.json()

@@ -19,10 +19,14 @@ jobs:
 
       - name: Check for version updates
         id: check
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: ./scripts/update-postgres-versions.py --check
 
       - name: Apply updates
         if: steps.check.outputs.updated == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: ./scripts/update-postgres-versions.py --apply
 
       - name: Create Pull Request
