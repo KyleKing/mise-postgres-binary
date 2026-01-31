@@ -52,25 +52,17 @@ local function try_checksum_cmd(command, diagnostics, method, os_type, install_p
     local output
     if os_type == "windows" then
         local path_sep = "\\"
-        local temp_bat = install_path .. path_sep .. "checksum_temp.bat"
         local temp_out = install_path .. path_sep .. "checksum_output.txt"
 
-        local batch_content =
-            string.format('@echo off\n%s > "%s" 2>&1 || (echo COMMAND_FAILED > "%s")\n', command, temp_out, temp_out)
-
-        file.write(temp_bat, batch_content)
-
-        cmd.exec(string.format('cmd.exe /c "%s"', temp_bat))
+        local redirect_cmd = string.format('%s > "%s" 2>&1', command, temp_out)
+        local exit_code = os.execute(redirect_cmd)
 
         if file.exists(temp_out) then
             output = file.read(temp_out)
             file.remove(temp_out)
         end
-        if file.exists(temp_bat) then
-            file.remove(temp_bat)
-        end
 
-        if output and output:match("COMMAND_FAILED") then
+        if not exit_code or exit_code ~= 0 then
             diagnostics[method].error = "Command not found or failed to execute"
             return nil
         end
