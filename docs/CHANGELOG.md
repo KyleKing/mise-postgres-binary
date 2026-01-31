@@ -1,3 +1,9 @@
+## 0.1.7 (2026-01-31)
+
+### Fix
+
+- resolve installation path
+
 ## 0.1.6 (2026-01-31)
 
 ### Fix
