@@ -78,23 +78,19 @@ SHA256 checksum verification requires platform-specific tools:
 - `awk` (standard on all systems)
 
 **Windows:**
-- **Primary**: Unix tools via Git Bash (Git for Windows, MSYS2, Cygwin)
-  - `sha256sum`, `awk` - provided by Git for Windows
-- **Fallback 1**: PowerShell (Windows 7+)
-  - `Get-FileHash` cmdlet (PowerShell 4.0+)
-- **Fallback 2**: `certutil.exe` (Windows Vista+)
-
-The plugin tries Unix tools first (works everywhere including Git Bash on Windows), then falls back to Windows-specific tools if needed.
+- PowerShell (included in all modern Windows versions)
+  - `Get-FileHash` cmdlet
+  - **Note:** If PowerShell is unavailable (e.g., running in Git Bash or cmd.exe), checksum verification is automatically skipped with a warning
 
 **Skip Checksum Validation (Not Recommended):**
 
-If none of the hash tools are available, you can skip checksum verification:
+On Unix systems, if hash tools are unavailable, you can skip checksum verification:
 
 ```sh
 export MISE_POSTGRES_BINARY_SKIP_CHECKSUM=1
 ```
 
-**WARNING**: Skipping checksum validation is insecure and not recommended. Use only in environments where hash tools cannot be installed and you trust the network connection.
+**WARNING**: Skipping checksum validation is insecure and not recommended. Use only in trusted environments where hash tools cannot be installed.
 
 ## Troubleshooting
 

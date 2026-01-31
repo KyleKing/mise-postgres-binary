@@ -150,18 +150,19 @@ local function compute_sha256(filepath, os_type)
         return hash
     end
 
-    local help_text = {}
     if os_type == "windows" then
-        help_text = {
-            "Requires PowerShell (included in all modern Windows versions)",
-            "To skip validation (insecure): export MISE_POSTGRES_BINARY_SKIP_CHECKSUM=1",
-        }
-    else
-        help_text = {
-            "Ensure sha256sum (Linux) or shasum (macOS) is installed and in PATH",
-            "To skip validation (insecure): export MISE_POSTGRES_BINARY_SKIP_CHECKSUM=1",
-        }
+        print("WARNING: PowerShell checksum verification failed. Skipping SHA256 verification on Windows.")
+        print("This may occur when running outside PowerShell (e.g., Git Bash, cmd.exe).")
+        print("To enforce checksum verification, run mise from PowerShell.")
+        print("\nDiagnostics:")
+        print_checksum_diagnostics(diagnostics)
+        return nil
     end
+
+    local help_text = {
+        "Ensure sha256sum (Linux) or shasum (macOS) is installed and in PATH",
+        "To skip validation (insecure): export MISE_POSTGRES_BINARY_SKIP_CHECKSUM=1",
+    }
 
     return checksum_error(filepath, diagnostics, help_text)
 end
