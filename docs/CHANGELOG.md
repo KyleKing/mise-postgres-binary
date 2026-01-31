@@ -1,3 +1,17 @@
+## 0.1.6 (2026-01-31)
+
+### Fix
+
+- require Powershell for Windows
+- use vfox os.execute
+
+### Refactor
+
+- mostly give up on Windows?
+- extract setup in CI
+- split out scripts from Dockerfiles
+- mount GH Token secretly and cache mise in CI
+
 ## 0.1.5 (2026-01-31)
 
 ### Fix
