@@ -1,3 +1,9 @@
+## 0.1.9 (2026-01-31)
+
+### Fix
+
+- add support for protected directories and ci debugging
+
 ## 0.1.8 (2026-01-31)
 
 ### Fix
