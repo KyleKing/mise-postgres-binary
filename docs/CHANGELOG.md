@@ -1,3 +1,9 @@
+## 0.1.8 (2026-01-31)
+
+### Fix
+
+- use unix-style paths for Windows Git Bash
+
 ## 0.1.7 (2026-01-31)
 
 ### Fix
