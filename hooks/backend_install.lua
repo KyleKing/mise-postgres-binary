@@ -45,11 +45,39 @@ local function normalize_path(path, os_type)
     return path
 end
 
-local function try_checksum_cmd(command, diagnostics, method, os_type)
+local function try_checksum_cmd(command, diagnostics, method, os_type, install_path)
     diagnostics[method].attempted = true
     diagnostics[method].command = command
 
-    local output = cmd.exec(command)
+    local output
+    if os_type == "windows" then
+        local path_sep = "\\"
+        local temp_bat = install_path .. path_sep .. "checksum_temp.bat"
+        local temp_out = install_path .. path_sep .. "checksum_output.txt"
+
+        local batch_content =
+            string.format('@echo off\n%s > "%s" 2>&1 || (echo COMMAND_FAILED > "%s")\n', command, temp_out, temp_out)
+
+        file.write(temp_bat, batch_content)
+
+        cmd.exec(string.format('cmd.exe /c "%s"', temp_bat))
+
+        if file.exists(temp_out) then
+            output = file.read(temp_out)
+            file.remove(temp_out)
+        end
+        if file.exists(temp_bat) then
+            file.remove(temp_bat)
+        end
+
+        if output and output:match("COMMAND_FAILED") then
+            diagnostics[method].error = "Command not found or failed to execute"
+            return nil
+        end
+    else
+        output = cmd.exec(command)
+    end
+
     if output and output ~= "" then
         diagnostics[method].output = output
         local hash = parse_sha256_from_output(output)
@@ -120,8 +148,9 @@ end
 --- Computes SHA256 checksum using platform-appropriate tools
 --- @param filepath string Path to file (forward or backward slashes)
 --- @param os_type string Operating system type from RUNTIME.osType
+--- @param install_path string Installation directory for temporary files
 --- @return string|nil SHA256 hash (64-char lowercase hex string), or nil if skipped
-local function compute_sha256(filepath, os_type)
+local function compute_sha256(filepath, os_type, install_path)
     if not file.exists(filepath) then
         error(string.format("Cannot compute checksum: file does not exist: %s", filepath))
     end
@@ -138,7 +167,7 @@ local function compute_sha256(filepath, os_type)
             filepath,
             filepath
         )
-        local hash = try_checksum_cmd(unix_cmd, diagnostics, "unix", os_type)
+        local hash = try_checksum_cmd(unix_cmd, diagnostics, "unix", os_type, install_path)
         if hash then
             return hash
         end
@@ -153,13 +182,13 @@ local function compute_sha256(filepath, os_type)
         "powershell.exe -NoProfile -ExecutionPolicy Bypass -Command \"(Get-FileHash -Algorithm SHA256 -Path '%s').Hash\"",
         filepath
     )
-    local ps_hash = try_checksum_cmd(ps_cmd, diagnostics, "powershell", os_type)
+    local ps_hash = try_checksum_cmd(ps_cmd, diagnostics, "powershell", os_type, install_path)
     if ps_hash then
         return ps_hash
     end
 
     local certutil_cmd = string.format('certutil.exe -hashfile "%s" SHA256', filepath)
-    local certutil_hash = try_checksum_cmd(certutil_cmd, diagnostics, "certutil", os_type)
+    local certutil_hash = try_checksum_cmd(certutil_cmd, diagnostics, "certutil", os_type, install_path)
     if certutil_hash then
         return certutil_hash
     end
@@ -303,7 +332,7 @@ local function download_and_verify_postgresql(version, platform, install_path)
     print(string.format("Downloaded archive: %s", temp_archive))
     print("Verifying checksum...")
 
-    local computed_sha256 = compute_sha256(temp_archive, os_type)
+    local computed_sha256 = compute_sha256(temp_archive, os_type, install_path)
 
     if computed_sha256 then
         print(string.format("Computed SHA256: %s", computed_sha256))
