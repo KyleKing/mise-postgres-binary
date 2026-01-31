@@ -14,10 +14,9 @@ concurrency:
 permissions:
   contents: read
 
-# # From the dark days
-# env:
-#   MISE_VERBOSE: 1
-#   RUST_BACKTRACE: full
+env:
+  MISE_VERBOSE: 1
+  RUST_BACKTRACE: full
 
 jobs:
   lint:
