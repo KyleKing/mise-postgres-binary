@@ -51,10 +51,9 @@ local function compute_sha256(filepath, os_type)
     end
 
     if os_type == "windows" then
-        local win_path = normalize_path(filepath, os_type)
         local ps_cmd = string.format(
-            "powershell -NoProfile -Command \"(Get-FileHash -Algorithm SHA256 -LiteralPath '%s').Hash\"",
-            win_path
+            "powershell.exe -NoProfile -ExecutionPolicy Bypass -Command \"(Get-FileHash -Algorithm SHA256 -Path '%s').Hash\"",
+            filepath:gsub("\\", "/")
         )
         local ok, ps_output = pcall(cmd.exec, ps_cmd)
         if ok and ps_output then
@@ -64,7 +63,7 @@ local function compute_sha256(filepath, os_type)
             end
         end
 
-        local certutil_cmd = string.format('certutil -hashfile "%s" SHA256', win_path)
+        local certutil_cmd = string.format('certutil.exe -hashfile "%s" SHA256', filepath:gsub("\\", "/"))
         local ok2, certutil_output = pcall(cmd.exec, certutil_cmd)
         if ok2 and certutil_output then
             local hash = parse_sha256_from_output(certutil_output)

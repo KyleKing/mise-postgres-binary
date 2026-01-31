@@ -16,6 +16,9 @@ concurrency:
 permissions:
   contents: read
 
+env:
+  MISE_VERBOSE: 1
+
 jobs:
   lint:
     name: Lint
