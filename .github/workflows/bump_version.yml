@@ -19,18 +19,6 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Create initial tag if none exists
-        run: |
-          if ! git tag --list | grep -q .; then
-            echo "No tags found, creating initial tag v0.0.0"
-            git config user.name "github-actions[bot]"
-            git config user.email "github-actions[bot]@users.noreply.github.com"
-            git tag v0.0.0
-            git push origin v0.0.0
-          else
-            echo "Existing tags found, skipping initial tag creation"
-          fi
-
       - name: Bump version and generate changelog
         uses: commitizen-tools/commitizen-action@master
         with:
