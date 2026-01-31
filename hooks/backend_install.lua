@@ -59,9 +59,9 @@ end
 --- Windows:
 ---   Primary: Unix tools via Git Bash (GitHub Actions, MSYS2, Cygwin)
 ---     - sha256sum, awk (provided by Git for Windows)
----   Fallback 1: PowerShell (Windows 7+, invoke via cmd.exe from Git Bash)
+---   Fallback 1: PowerShell (Windows 7+, direct invocation)
 ---     - Get-FileHash cmdlet (PowerShell 4.0+)
----   Fallback 2: certutil (Windows Vista+, invoke via cmd.exe)
+---   Fallback 2: certutil (Windows Vista+, direct invocation)
 ---     - certutil.exe -hashfile
 ---
 --- Platform Strategy:
@@ -69,13 +69,13 @@ end
 ---      - Works on native Unix/Linux/macOS
 ---      - Also works on Windows with Git Bash (most CI environments)
 ---   2. On Windows if Unix tools fail:
----      - Try PowerShell via cmd.exe (requires proper escaping)
----      - Try certutil via cmd.exe (legacy fallback)
+---      - Try PowerShell directly (invoked without cmd.exe wrapper)
+---      - Try certutil directly (legacy fallback)
 ---
 --- Path Handling:
 ---   - Unix tools accept forward slashes on all platforms
----   - Windows tools invoked via cmd.exe accept forward slashes
----   - No path normalization needed (forward slashes work everywhere)
+---   - Windows PowerShell and certutil accept forward slashes
+---   - Paths normalized to forward slashes for consistency
 ---
 --- Error Handling:
 ---   - Throws error if file doesn't exist
@@ -102,7 +102,7 @@ local function compute_sha256(filepath, os_type)
 
     if os_type == "windows" then
         local ps_cmd = string.format(
-            'cmd.exe /c "powershell.exe -NoProfile -ExecutionPolicy Bypass -Command \\"(Get-FileHash -Algorithm SHA256 -Path \'%s\').Hash\\""',
+            "powershell.exe -NoProfile -ExecutionPolicy Bypass -Command \"(Get-FileHash -Algorithm SHA256 -Path '%s').Hash\"",
             filepath:gsub("\\", "/")
         )
         local ok2, ps_output = pcall(cmd.exec, ps_cmd)
@@ -113,8 +113,7 @@ local function compute_sha256(filepath, os_type)
             end
         end
 
-        local certutil_cmd =
-            string.format('cmd.exe /c "certutil.exe -hashfile \\"%s\\" SHA256"', filepath:gsub("\\", "/"))
+        local certutil_cmd = string.format('certutil.exe -hashfile "%s" SHA256', filepath:gsub("\\", "/"))
         local ok3, certutil_output = pcall(cmd.exec, certutil_cmd)
         if ok3 and certutil_output then
             local hash = parse_sha256_from_output(certutil_output)
