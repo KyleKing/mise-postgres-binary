@@ -98,19 +98,19 @@ mise exec "postgres-binary:postgres@$PG_VERSION" -- postgres --version
 mise exec "postgres-binary:postgres@$PG_VERSION" -- psql --version
 mise exec "postgres-binary:postgres@$PG_VERSION" -- pg_dump --version
 
-# Check environment
-eval "$(mise activate bash)"
-mise use "postgres-binary:postgres@$PG_VERSION"
-PGDATA="$(mise env -s bash | grep "^export PGDATA=" | cut -d= -f2- | tr -d '"')"
+# Check environment - construct PGDATA from install path
+echo "Checking environment..."
+INSTALL_PATH="$HOME/.local/share/mise/installs/postgres-binary-postgres/$PG_VERSION"
+PGDATA="$INSTALL_PATH/data"
 echo "PGDATA=$PGDATA"
 [ -d "$PGDATA" ] && echo "PGDATA directory exists" || exit 1
 [ -f "$PGDATA/PG_VERSION" ] && echo "Database initialized" || exit 1
 
 # Start and query
 echo "Starting PostgreSQL..."
-pg_ctl start -D "$PGDATA" -l /tmp/pg-test.log -w
-psql -c "SELECT version();" postgres
-pg_ctl stop -D "$PGDATA" -m fast
+mise exec "postgres-binary:postgres@$PG_VERSION" -- pg_ctl start -D "$PGDATA" -l /tmp/pg-test.log -w
+mise exec "postgres-binary:postgres@$PG_VERSION" -- psql -c "SELECT version();" postgres
+mise exec "postgres-binary:postgres@$PG_VERSION" -- pg_ctl stop -D "$PGDATA" -m fast
 
 echo "Full installation test passed!"
 '''
