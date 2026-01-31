@@ -1,3 +1,10 @@
+## 0.1.1 (2026-01-31)
+
+### Fix
+
+- don't wrap with pcall
+- correct module discovery
+
 ## 0.1.0 (2026-01-31)
 
 ### Feat
