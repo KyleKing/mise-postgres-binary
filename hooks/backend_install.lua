@@ -48,7 +48,7 @@ end
 --- Computes SHA256 checksum using platform-appropriate tools
 --- @param filepath string Path to file (forward or backward slashes)
 --- @param os_type string Operating system type from RUNTIME.osType
---- @return string SHA256 hash (64-char lowercase hex string)
+--- @return string|nil SHA256 hash (64-char lowercase hex string), or nil if skipped
 ---
 --- System Dependencies:
 ---
@@ -81,6 +81,7 @@ end
 ---   - Throws error if file doesn't exist
 ---   - Throws error with diagnostic output if all methods fail
 ---   - Shows attempted output from each tool for debugging
+---   - Can skip validation with MISE_POSTGRES_BINARY_SKIP_CHECKSUM=1 (prints warning)
 local function compute_sha256(filepath, os_type)
     if not file.exists(filepath) then
         error(string.format("Cannot compute checksum: file does not exist: %s", filepath))
@@ -122,9 +123,25 @@ local function compute_sha256(filepath, os_type)
             end
         end
 
+        local skip_checksum = os.getenv("MISE_POSTGRES_BINARY_SKIP_CHECKSUM")
+        if skip_checksum == "1" or skip_checksum == "true" then
+            print(
+                "WARNING: Skipping SHA256 verification (MISE_POSTGRES_BINARY_SKIP_CHECKSUM=1). This is insecure and not recommended."
+            )
+            print(
+                string.format(
+                    "  Attempted methods - Unix tools: %s, PowerShell: %s, certutil: %s",
+                    tostring(output or "failed"),
+                    tostring(ps_output or "failed"),
+                    tostring(certutil_output or "failed")
+                )
+            )
+            return nil
+        end
+
         error(
             string.format(
-                "Failed to compute SHA256 on Windows. Unix tools: %s, PowerShell: %s, certutil: %s",
+                "Failed to compute SHA256 on Windows. Unix tools: %s, PowerShell: %s, certutil: %s\n\nTo skip validation (insecure): export MISE_POSTGRES_BINARY_SKIP_CHECKSUM=1",
                 tostring(output or "failed"),
                 tostring(ps_output or "failed"),
                 tostring(certutil_output or "failed")
@@ -132,7 +149,21 @@ local function compute_sha256(filepath, os_type)
         )
     end
 
-    error(string.format("Failed to compute SHA256: %s", tostring(output or "failed")))
+    local skip_checksum = os.getenv("MISE_POSTGRES_BINARY_SKIP_CHECKSUM")
+    if skip_checksum == "1" or skip_checksum == "true" then
+        print(
+            "WARNING: Skipping SHA256 verification (MISE_POSTGRES_BINARY_SKIP_CHECKSUM=1). This is insecure and not recommended."
+        )
+        print(string.format("  Attempted method - Unix tools: %s", tostring(output or "failed")))
+        return nil
+    end
+
+    error(
+        string.format(
+            "Failed to compute SHA256: %s\n\nTo skip validation (insecure): export MISE_POSTGRES_BINARY_SKIP_CHECKSUM=1",
+            tostring(output or "failed")
+        )
+    )
 end
 
 local function is_musl_libc()
@@ -197,9 +228,13 @@ local function download_and_verify_postgresql(version, platform, install_path)
     local os_type = RUNTIME.osType:lower()
     local computed_sha256 = compute_sha256(temp_archive, os_type)
 
-    if computed_sha256 ~= expected_sha256 then
-        os.remove(temp_archive)
-        error(string.format("SHA256 mismatch! Expected: %s, Got: %s", expected_sha256, computed_sha256))
+    if computed_sha256 then
+        if computed_sha256 ~= expected_sha256 then
+            os.remove(temp_archive)
+            error(string.format("SHA256 mismatch! Expected: %s, Got: %s", expected_sha256, computed_sha256))
+        end
+    else
+        print("WARNING: Proceeding without checksum verification")
     end
 
     local extract_err = archiver.decompress(temp_archive, install_path)

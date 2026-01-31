@@ -97,6 +97,15 @@ SHA256 checksum verification requires platform-specific tools:
 
 The plugin tries Unix tools first (works everywhere including Git Bash on Windows), then falls back to Windows-specific tools if needed.
 
+**Skip Checksum Validation (Not Recommended):**
+
+If none of the hash tools are available, you can skip checksum verification:
+```bash
+export MISE_POSTGRES_BINARY_SKIP_CHECKSUM=1
+```
+
+**WARNING**: Skipping checksum validation is insecure and not recommended. Use only in environments where hash tools cannot be installed and you trust the network connection.
+
 ## Supported PostgreSQL Versions
 
 - PostgreSQL 18.x
@@ -144,6 +153,12 @@ This usually indicates a corrupted download. Try:
 1. Remove the installation: `mise uninstall postgres-binary:postgres@<version>`
 2. Clear mise cache: `rm -rf ~/.local/share/mise/downloads/postgres-binary*`
 3. Reinstall: `mise install postgres-binary:postgres@<version>`
+
+If hash tools are unavailable in your environment, you can skip validation (insecure):
+```bash
+export MISE_POSTGRES_BINARY_SKIP_CHECKSUM=1
+mise install postgres-binary:postgres@<version>
+```
 
 ### Database Already Initialized
 
