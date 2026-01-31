@@ -2,6 +2,7 @@ local cmd = require("cmd")
 local file = require("file")
 local http = require("http")
 local archiver = require("archiver")
+local lib = require("hooks.lib")
 
 local RUST_TARGETS = {
     ["darwin-amd64"] = "x86_64-apple-darwin",
@@ -365,8 +366,14 @@ local function download_and_verify_postgresql(version, platform, install_path)
 
         if has_unix_shell then
             print("Detected Unix-like shell (Git Bash/MSYS2), using Unix commands for file operations")
-            move_cmd =
-                string.format('sh -c \'cp -r "%s"/* "%s/" && rm -rf "%s"\'', extracted_dir, install_path, extracted_dir)
+            local unix_extracted_dir = lib.windows_to_unix_path(extracted_dir)
+            local unix_install_path = lib.windows_to_unix_path(install_path)
+            move_cmd = string.format(
+                'sh -c \'cp -r "%s"/* "%s/" && rm -rf "%s"\'',
+                unix_extracted_dir,
+                unix_install_path,
+                unix_extracted_dir
+            )
             move_output = cmd.exec(move_cmd)
             if not move_output or not (move_output:match("[Ee]rror") or move_output:match("[Ff]ailed")) then
                 move_succeeded = true
@@ -406,9 +413,10 @@ local function download_and_verify_postgresql(version, platform, install_path)
         if not file.exists(bin_dir) then
             local ls_cmd
             if has_unix_shell then
+                local unix_install_path = lib.windows_to_unix_path(install_path)
                 ls_cmd = string.format(
                     'ls -la "%s" 2>&1 || dir "%s" 2>&1',
-                    install_path,
+                    unix_install_path,
                     normalize_path(install_path, os_type)
                 )
             else

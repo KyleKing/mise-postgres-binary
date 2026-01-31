@@ -170,4 +170,34 @@ describe("lib", function()
             assert.is_nil(lib.normalize_path(nil, "linux"))
         end)
     end)
+
+    describe("windows_to_unix_path", function()
+        it("converts backslashes to forward slashes", function()
+            assert.are.equal("/Users/test/file", lib.windows_to_unix_path("\\Users\\test\\file"))
+        end)
+
+        it("converts drive letter to Unix format", function()
+            assert.are.equal("/c/Users/test/file", lib.windows_to_unix_path("C:\\Users\\test\\file"))
+        end)
+
+        it("handles lowercase drive letters", function()
+            assert.are.equal("/d/data/file", lib.windows_to_unix_path("d:\\data\\file"))
+        end)
+
+        it("handles mixed separators", function()
+            assert.are.equal("/c/Users/test/file", lib.windows_to_unix_path("C:/Users\\test/file"))
+        end)
+
+        it("handles paths without drive letters", function()
+            assert.are.equal("/Users/test/file", lib.windows_to_unix_path("\\Users\\test\\file"))
+        end)
+
+        it("returns nil for nil input", function()
+            assert.is_nil(lib.windows_to_unix_path(nil))
+        end)
+
+        it("handles already Unix-style paths", function()
+            assert.are.equal("/home/test/file", lib.windows_to_unix_path("/home/test/file"))
+        end)
+    end)
 end)

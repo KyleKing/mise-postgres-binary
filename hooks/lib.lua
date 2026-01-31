@@ -65,4 +65,15 @@ function M.normalize_path(path, os_type)
     return path
 end
 
+function M.windows_to_unix_path(path)
+    if not path then
+        return nil
+    end
+    local unix_path = path:gsub("\\", "/")
+    unix_path = unix_path:gsub("^(%a):/", function(drive)
+        return "/" .. drive:lower() .. "/"
+    end)
+    return unix_path
+end
+
 return M
