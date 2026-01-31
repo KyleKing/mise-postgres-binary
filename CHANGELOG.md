@@ -1,3 +1,10 @@
+## 0.1.2 (2026-01-31)
+
+### Fix
+
+- skip mac binaries on Windows because can't use pcall
+- better utilize mise with test-install
+
 ## 0.1.1 (2026-01-31)
 
 ### Fix
