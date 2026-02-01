@@ -314,13 +314,15 @@ local function download_and_verify_postgresql(version, platform, install_path)
     end
 
     print(string.format("Moving files from extracted directory: %s", extracted_dir))
+    print(string.format("Extracted directory exists: %s", tostring(file.exists(extracted_dir))))
     if os_type == "windows" then
         local move_succeeded = false
         local move_output = nil
         local move_cmd = nil
 
-        local unix_test = cmd.exec("which sh 2>/dev/null || echo NOTFOUND")
-        local has_unix_shell = unix_test and not unix_test:match("NOTFOUND")
+        local unix_test = cmd.exec("sh --version 2>&1 || echo NOTFOUND")
+        local has_unix_shell = unix_test and not unix_test:match("NOTFOUND") and unix_test:match("sh")
+        print(string.format("Unix shell detection result: %s", tostring(has_unix_shell)))
 
         if has_unix_shell then
             print("Detected Unix-like shell (Git Bash/MSYS2), using Unix commands for file operations")
@@ -347,16 +349,27 @@ local function download_and_verify_postgresql(version, platform, install_path)
             end
             local win_src = lib.normalize_path(extracted_dir, os_type)
             local win_dest = lib.normalize_path(install_path, os_type)
+
+            print(string.format("Attempting to move files:"))
+            print(string.format("  From: %s\\*", win_src))
+            print(string.format("  To: %s", win_dest))
+
             move_cmd = string.format(
-                "powershell.exe -NoProfile -ExecutionPolicy Bypass -Command \"Copy-Item -Path '%s\\*' -Destination '%s' -Recurse -Force; Remove-Item -Path '%s' -Recurse -Force\"",
+                "powershell.exe -NoProfile -ExecutionPolicy Bypass -Command \"$ErrorActionPreference='Stop'; Copy-Item -Path '%s\\*' -Destination '%s' -Recurse -Force; Remove-Item -Path '%s' -Recurse -Force; exit 0\"",
                 win_src,
                 win_dest,
                 win_src
             )
-            print(string.format("Executing: %s", move_cmd))
+            print(string.format("Executing PowerShell command"))
             move_output = cmd.exec(move_cmd)
-            if not move_output or not (move_output:match("[Ee]rror") or move_output:match("[Ff]ailed")) then
+            print(string.format("PowerShell output: %s", move_output or "(no output)"))
+
+            local bin_check = install_path .. "\\bin"
+            if file.exists(bin_check) then
+                print("Verification: bin directory exists after move")
                 move_succeeded = true
+            elseif not move_output or not (move_output:match("[Ee]rror") or move_output:match("[Ff]ailed")) then
+                print("WARNING: No errors reported but bin directory not found")
             end
         end
 
@@ -373,28 +386,19 @@ local function download_and_verify_postgresql(version, platform, install_path)
 
         local bin_dir = install_path .. "\\bin"
         if not file.exists(bin_dir) then
-            local ls_cmd
-            if has_unix_shell then
-                local bash_install_path = install_path:gsub("\\", "/")
-                ls_cmd = string.format('ls -la "%s" 2>&1', bash_install_path)
-            else
-                ls_cmd = string.format('dir "%s" 2>&1', lib.normalize_path(install_path, os_type))
-            end
-            local ls_output = cmd.exec(ls_cmd) or "(failed to list directory)"
-
             local error_msg = {
                 "File move completed but bin directory not found.",
                 string.format("\nExpected bin directory: %s", bin_dir),
                 string.format("Install path: %s", install_path),
+                string.format("Install directory exists: %s", tostring(file.exists(install_path))),
                 string.format("Extracted directory existed: %s", tostring(file.exists(extracted_dir))),
                 string.format("Move command used: %s", move_cmd),
                 string.format("Command output: %s", move_output or "(empty)"),
-                "\nInstall directory contents:",
-                ls_output,
                 "\nPossible causes:",
                 "  - Archive extraction created unexpected directory structure",
                 "  - File move succeeded but bin directory wasn't in the extracted files",
                 "  - PowerShell Copy-Item failed silently in non-PowerShell environment",
+                "\nTo debug, check the contents of the install directory manually.",
             }
             error(table.concat(error_msg, "\n"))
         end
