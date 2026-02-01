@@ -15,8 +15,7 @@ permissions:
   contents: read
 
 env:
-  MISE_VERBOSE: 1
-  RUST_BACKTRACE: full
+  MISE_LOG_LEVEL: debug
 
 jobs:
   lint:

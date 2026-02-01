@@ -312,7 +312,6 @@ local function download_and_verify_postgresql(version, platform, install_path)
     end
 
     print(string.format("Moving files from extracted directory: %s", extracted_dir))
-    print(string.format("Extracted directory exists: %s", tostring(file.exists(extracted_dir))))
     if os_type == "windows" then
         local move_succeeded = false
         local move_output = nil
@@ -320,22 +319,15 @@ local function download_and_verify_postgresql(version, platform, install_path)
 
         local unix_test = cmd.exec("sh --version 2>&1 || echo NOTFOUND")
         local has_unix_shell = unix_test and not unix_test:match("NOTFOUND") and unix_test:match("sh")
-        print(string.format("Unix shell detection result: %s", tostring(has_unix_shell)))
 
         if has_unix_shell then
-            print("Detected Unix-like shell (Git Bash/MSYS2), using Unix commands for file operations")
             local unix_src = lib.windows_to_unix_path(extracted_dir)
             local unix_dest = lib.windows_to_unix_path(install_path)
-            print(string.format("  Source: %s", unix_src))
-            print(string.format("  Destination: %s", unix_dest))
             move_cmd = string.format("cp -r %s/. %s/", unix_src, unix_dest)
-            print(string.format("Executing: %s", move_cmd))
             move_output = cmd.exec(move_cmd)
             local bin_check = install_path .. "\\bin"
             if file.exists(bin_check) then
-                print("Verification: bin directory exists after copy")
                 local rm_cmd = string.format("rm -rf %s", unix_src)
-                print(string.format("Executing: %s", rm_cmd))
                 cmd.exec(rm_cmd)
                 move_succeeded = true
             end
@@ -343,25 +335,17 @@ local function download_and_verify_postgresql(version, platform, install_path)
 
         if not move_succeeded then
             if has_unix_shell then
-                print("Unix copy failed, falling back to xcopy")
+                print("Falling back to native Windows commands")
             end
             local win_src = lib.normalize_path(extracted_dir, os_type)
             local win_dest = lib.normalize_path(install_path, os_type)
 
-            print(string.format("Attempting xcopy:"))
-            print(string.format("  From: %s", win_src))
-            print(string.format("  To: %s", win_dest))
-
             move_cmd = string.format("xcopy %s %s /E /Y /I /Q", win_src, win_dest)
-            print(string.format("Executing: %s", move_cmd))
             move_output = cmd.exec(move_cmd)
-            print(string.format("xcopy output: %s", move_output or "(no output)"))
 
             local bin_check = install_path .. "\\bin"
             if file.exists(bin_check) then
-                print("Verification: bin directory exists after xcopy")
                 local rmdir_cmd = string.format("rmdir /S /Q %s", win_src)
-                print(string.format("Executing: %s", rmdir_cmd))
                 cmd.exec(rmdir_cmd)
                 move_succeeded = true
             end
@@ -454,7 +438,6 @@ local function initialize_pgdata(install_path)
     local pgdata_path = os_type == "windows" and pgdata_dir:gsub("\\", "/") or pgdata_dir
     local initdb_cmd = string.format("%s -D %s --encoding=UTF8 --locale=C", initdb_path, pgdata_path)
 
-    print(string.format("Running: %s", initdb_cmd))
     local result = cmd.exec(initdb_cmd)
 
     if result:lower():match("error") or result:lower():match("failed") or result:lower():match("fatal") then
