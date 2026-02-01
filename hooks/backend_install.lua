@@ -326,50 +326,46 @@ local function download_and_verify_postgresql(version, platform, install_path)
 
         if has_unix_shell then
             print("Detected Unix-like shell (Git Bash/MSYS2), using Unix commands for file operations")
-            local bash_extracted_dir = lib.windows_to_unix_path(extracted_dir)
-            local bash_install_path = lib.windows_to_unix_path(install_path)
-            print(string.format("  Source: %s", bash_extracted_dir))
-            print(string.format("  Destination: %s", bash_install_path))
-            move_cmd = string.format(
-                "sh -c \"cp -r '%s/.' '%s/' && rm -rf '%s'\"",
-                bash_extracted_dir,
-                bash_install_path,
-                bash_extracted_dir
-            )
+            local unix_src = lib.windows_to_unix_path(extracted_dir)
+            local unix_dest = lib.windows_to_unix_path(install_path)
+            print(string.format("  Source: %s", unix_src))
+            print(string.format("  Destination: %s", unix_dest))
+            move_cmd = string.format("cp -r %s/. %s/", unix_src, unix_dest)
             print(string.format("Executing: %s", move_cmd))
             move_output = cmd.exec(move_cmd)
-            if not move_output or not (move_output:match("[Ee]rror") or move_output:match("[Ff]ailed")) then
+            local bin_check = install_path .. "\\bin"
+            if file.exists(bin_check) then
+                print("Verification: bin directory exists after copy")
+                local rm_cmd = string.format("rm -rf %s", unix_src)
+                print(string.format("Executing: %s", rm_cmd))
+                cmd.exec(rm_cmd)
                 move_succeeded = true
             end
         end
 
         if not move_succeeded then
             if has_unix_shell then
-                print("Unix command failed, falling back to PowerShell")
+                print("Unix copy failed, falling back to xcopy")
             end
             local win_src = lib.normalize_path(extracted_dir, os_type)
             local win_dest = lib.normalize_path(install_path, os_type)
 
-            print(string.format("Attempting to move files:"))
-            print(string.format("  From: %s\\*", win_src))
+            print(string.format("Attempting xcopy:"))
+            print(string.format("  From: %s", win_src))
             print(string.format("  To: %s", win_dest))
 
-            move_cmd = string.format(
-                "powershell.exe -NoProfile -ExecutionPolicy Bypass -Command \"$ErrorActionPreference='Stop'; Copy-Item -Path '%s\\*' -Destination '%s' -Recurse -Force; Remove-Item -Path '%s' -Recurse -Force; exit 0\"",
-                win_src,
-                win_dest,
-                win_src
-            )
-            print(string.format("Executing PowerShell command"))
+            move_cmd = string.format("xcopy %s %s /E /Y /I /Q", win_src, win_dest)
+            print(string.format("Executing: %s", move_cmd))
             move_output = cmd.exec(move_cmd)
-            print(string.format("PowerShell output: %s", move_output or "(no output)"))
+            print(string.format("xcopy output: %s", move_output or "(no output)"))
 
             local bin_check = install_path .. "\\bin"
             if file.exists(bin_check) then
-                print("Verification: bin directory exists after move")
+                print("Verification: bin directory exists after xcopy")
+                local rmdir_cmd = string.format("rmdir /S /Q %s", win_src)
+                print(string.format("Executing: %s", rmdir_cmd))
+                cmd.exec(rmdir_cmd)
                 move_succeeded = true
-            elseif not move_output or not (move_output:match("[Ee]rror") or move_output:match("[Ff]ailed")) then
-                print("WARNING: No errors reported but bin directory not found")
             end
         end
 
