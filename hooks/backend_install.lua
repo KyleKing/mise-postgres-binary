@@ -331,7 +331,7 @@ local function download_and_verify_postgresql(version, platform, install_path)
             print(string.format("  Source: %s", bash_extracted_dir))
             print(string.format("  Destination: %s", bash_install_path))
             move_cmd = string.format(
-                'cp -r "%s"/* "%s/" && rm -rf "%s"',
+                'sh -c \'cd "%s" && cp -r * "%s/" && cd .. && rm -rf "%s"\'',
                 bash_extracted_dir,
                 bash_install_path,
                 bash_extracted_dir
