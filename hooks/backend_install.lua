@@ -326,8 +326,8 @@ local function download_and_verify_postgresql(version, platform, install_path)
 
         if has_unix_shell then
             print("Detected Unix-like shell (Git Bash/MSYS2), using Unix commands for file operations")
-            local bash_extracted_dir = extracted_dir:gsub("\\", "/")
-            local bash_install_path = install_path:gsub("\\", "/")
+            local bash_extracted_dir = lib.windows_to_unix_path(extracted_dir)
+            local bash_install_path = lib.windows_to_unix_path(install_path)
             print(string.format("  Source: %s", bash_extracted_dir))
             print(string.format("  Destination: %s", bash_install_path))
             move_cmd = string.format(
