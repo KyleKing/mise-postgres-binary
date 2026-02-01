@@ -92,10 +92,8 @@ local function compute_sha256(filepath, os_type)
 
     local command
     if os_type == "windows" then
-        command = string.format(
-            "powershell.exe -NoProfile -ExecutionPolicy Bypass -Command \"(Get-FileHash -Algorithm SHA256 -Path '%s').Hash\"",
-            filepath
-        )
+        local unix_filepath = filepath:gsub("\\", "/")
+        command = string.format("sha256sum %s", unix_filepath)
     else
         command = string.format(
             '(sha256sum "%s" 2>/dev/null || shasum -a 256 "%s" 2>/dev/null) | awk \'{print $1}\'',
@@ -452,9 +450,9 @@ local function initialize_pgdata(install_path)
         error(table.concat(error_msg, "\n"))
     end
 
-    local initdb_path = os_type == "windows" and lib.normalize_path(initdb_bin, os_type) or initdb_bin
-    local pgdata_path = os_type == "windows" and lib.normalize_path(pgdata_dir, os_type) or pgdata_dir
-    local initdb_cmd = string.format('"%s" -D "%s" --encoding=UTF8 --locale=C', initdb_path, pgdata_path)
+    local initdb_path = os_type == "windows" and initdb_bin:gsub("\\", "/") or initdb_bin
+    local pgdata_path = os_type == "windows" and pgdata_dir:gsub("\\", "/") or pgdata_dir
+    local initdb_cmd = string.format("%s -D %s --encoding=UTF8 --locale=C", initdb_path, pgdata_path)
 
     print(string.format("Running: %s", initdb_cmd))
     local result = cmd.exec(initdb_cmd)
@@ -529,7 +527,7 @@ function PLUGIN:BackendInstall(ctx)
         local os_type = RUNTIME.osType:lower()
         local mkdir_cmd
         if os_type == "windows" then
-            mkdir_cmd = 'mkdir "' .. lib.normalize_path(install_path, os_type) .. '"'
+            mkdir_cmd = "mkdir " .. install_path:gsub("\\", "/")
         else
             mkdir_cmd = 'mkdir -p "' .. install_path .. '"'
         end
