@@ -1,3 +1,9 @@
+## 0.1.10 (2026-02-05)
+
+### Refactor
+
+- cleanup logging output
+
 ## 0.1.9 (2026-01-31)
 
 ### Fix
