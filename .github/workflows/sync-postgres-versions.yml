@@ -6,6 +6,9 @@ on:
     - cron: "0 9 * * 1"
   workflow_dispatch:
 
+# FYI: In addition, manually enable "Allow GitHub Actions to create and approve pull requests"
+#  in repository settings: Settings > Actions > General > Actions permissions
+#  (https://github.com/KyleKing/mise-postgres-binary/settings/actions)
 permissions:
   contents: write
   pull-requests: write
