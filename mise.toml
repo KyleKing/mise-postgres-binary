@@ -137,7 +137,7 @@ set -euo pipefail
 
 VERSIONS=("${@:-14.20.0 18.1.0}")
 if [[ "$#" -eq 0 ]]; then
-    VERSIONS=("14.20.0" "18.1.0")
+    VERSIONS=("14.22.0" "18.3.0")
 fi
 
 mise plugin link --force postgres-binary "$PWD"
