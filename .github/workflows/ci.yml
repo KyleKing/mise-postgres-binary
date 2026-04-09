@@ -18,6 +18,22 @@ env:
   MISE_LOG_LEVEL: debug
 
 jobs:
+  setup:
+    name: Load versions
+    runs-on: ubuntu-latest
+    outputs:
+      oldest_version: ${{ steps.versions.outputs.oldest_version }}
+      pg_versions: ${{ steps.versions.outputs.pg_versions }}
+    steps:
+      - uses: actions/checkout@v6
+      - name: Load PostgreSQL versions from scripts/postgres-versions.json
+        id: versions
+        run: |
+          newest=$(jq -r '.newest' scripts/postgres-versions.json)
+          oldest=$(jq -r '.oldest' scripts/postgres-versions.json)
+          echo "oldest_version=$oldest" >> "$GITHUB_OUTPUT"
+          echo "pg_versions=[\"$newest\", \"$oldest\"]" >> "$GITHUB_OUTPUT"
+
   lint:
     name: Lint
     runs-on: ubuntu-latest
@@ -45,13 +61,13 @@ jobs:
 
   test:
     name: Test (${{ matrix.os }}, PG ${{ matrix.pg_version }})
-    needs: lint
+    needs: [lint, setup]
     timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
-        pg_version: ["18.1.0", "14.20.0"]
+        pg_version: ${{ fromJson(needs.setup.outputs.pg_versions) }}
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v6
@@ -126,7 +142,7 @@ jobs:
 
   test-windows:
     name: Test (Windows)
-    needs: lint
+    needs: [lint, setup]
     timeout-minutes: 30
     runs-on: windows-latest
     steps:
@@ -143,10 +159,10 @@ jobs:
         shell: bash
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: mise install postgres-binary:postgres@14.20.0
+        run: mise install postgres-binary:postgres@${{ needs.setup.outputs.oldest_version }}
 
       - name: Verify binaries
         shell: bash
         run: |
-          mise exec postgres-binary:postgres@14.20.0 -- postgres --version
-          mise exec postgres-binary:postgres@14.20.0 -- psql --version
+          mise exec postgres-binary:postgres@${{ needs.setup.outputs.oldest_version }} -- postgres --version
+          mise exec postgres-binary:postgres@${{ needs.setup.outputs.oldest_version }} -- psql --version

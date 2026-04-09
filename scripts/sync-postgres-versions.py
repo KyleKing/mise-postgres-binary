@@ -20,7 +20,6 @@ import httpx
 
 REPO_ROOT = Path(__file__).parent.parent
 VERSIONS_FILE = REPO_ROOT / "scripts/postgres-versions.json"
-CI_WORKFLOW = REPO_ROOT / ".github/workflows/ci.yml"
 DOCKER_BAKE = REPO_ROOT / "docker/docker-bake.hcl"
 MISE_TOML = REPO_ROOT / "mise.toml"
 DOCKERFILES = list((REPO_ROOT / "docker").glob("Dockerfile.*"))
@@ -98,31 +97,6 @@ def write_versions_file(versions: dict[str, str]) -> None:
     """Write versions to scripts/postgres-versions.json."""
     content = json.dumps(versions, indent=2) + "\n"
     VERSIONS_FILE.write_text(content)
-
-
-def update_ci_workflow(versions: dict[str, str]) -> bool:
-    """Update pg_version matrix in CI workflow."""
-    content = CI_WORKFLOW.read_text()
-    original = content
-
-    versions_str = f'"{versions["newest"]}", "{versions["oldest"]}"'
-    content = re.sub(
-        r"(pg_version:\s*\[)[^\]]+(\])",
-        rf"\g<1>{versions_str}\g<2>",
-        content,
-    )
-
-    content = re.sub(
-        r"postgres-binary:postgres@\d+\.\d+\.\d+",
-        f"postgres-binary:postgres@{versions['oldest']}",
-        content,
-    )
-
-    if content == original:
-        return False
-
-    CI_WORKFLOW.write_text(content)
-    return True
 
 
 def update_docker_bake(versions: dict[str, str]) -> bool:
@@ -250,8 +224,6 @@ def main() -> int:
     if args.check:
         set_github_output("updated", "true")
         set_github_output("new_versions", f"{recommended['newest']}, {recommended['oldest']}")
-        set_github_output("newest_version", recommended["newest"])
-        set_github_output("oldest_version", recommended["oldest"])
         return 0
 
     if args.apply:
@@ -260,9 +232,6 @@ def main() -> int:
 
         write_versions_file(recommended)
         print("  scripts/postgres-versions.json: updated")
-
-        updated_ci = update_ci_workflow(recommended)
-        print(f"  .github/workflows/ci.yml: {'updated' if updated_ci else 'no changes'}")
 
         updated_bake = update_docker_bake(recommended)
         print(f"  docker-bake.hcl: {'updated' if updated_bake else 'no changes'}")
@@ -275,8 +244,6 @@ def main() -> int:
 
         set_github_output("updated", "true")
         set_github_output("new_versions", f"{recommended['newest']}, {recommended['oldest']}")
-        set_github_output("newest_version", recommended["newest"])
-        set_github_output("oldest_version", recommended["oldest"])
 
         print()
         print("Updates applied. Review changes with: git diff")
