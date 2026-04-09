@@ -249,6 +249,7 @@ def main() -> int:
 
     if args.check:
         set_github_output("updated", "true")
+        set_github_output("new_versions", f"{recommended['newest']}, {recommended['oldest']}")
         set_github_output("newest_version", recommended["newest"])
         set_github_output("oldest_version", recommended["oldest"])
         return 0
@@ -273,6 +274,7 @@ def main() -> int:
         print(f"  test/Dockerfile.*: {'updated' if updated_dockerfiles else 'no changes'}")
 
         set_github_output("updated", "true")
+        set_github_output("new_versions", f"{recommended['newest']}, {recommended['oldest']}")
         set_github_output("newest_version", recommended["newest"])
         set_github_output("oldest_version", recommended["oldest"])
 
