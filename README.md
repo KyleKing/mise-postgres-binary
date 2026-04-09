@@ -1,6 +1,15 @@
 # mise-postgres-binary
 
-mise backend plugin for installing PostgreSQL from pre-built binaries. Fast cross-platform installs with SHA256 verification and automatic PGDATA setup -- no compiler toolchain needed. Use a source-build plugin like [mise-postgres](https://github.com/kyleking/mise-postgres) if you need custom `./configure` options.
+mise backend plugin for installing PostgreSQL from pre-built binaries. Fast cross-platform installs with SHA256 verification and automatic PGDATA setup -- no compiler toolchain needed. Use a source-build plugin like [mise-postgres](https://github.com/mise-plugins/mise-postgres) if you need custom `./configure` options.
+
+## Alternatives
+
+This plugin is optimized for fast installs using pre-built binaries from [theseus-rs/postgresql-binaries](https://github.com/theseus-rs/postgresql-binaries). Consider an alternative if you need PostgreSQL extensions or run into binary compatibility issues (e.g., [missing OpenSSL](https://github.com/theseus-rs/postgresql-binaries/issues/20)), need extensions, are already using a different tool, etc.:
+
+- **mise-nix** (`mise use nix:postgresql_17`). Requires experimental nix backend (https://github.com/jbadeau/mise-nix) and supports defining extensions
+- **conda** (`mise use conda:postgresql@17`). For extensions, you will need to manage a conda environment (`conda install postgresql pgvector`) unless supported by mise's conda backend (https://mise.jdx.dev/dev-tools/backends/conda.html)
+- **mise-postgres** ([mise-plugins/mise-postgres](https://github.com/mise-plugins/mise-postgres) - fork of asdf package). Builds PostgreSQL from source and supports custom `./configure` options and extension compilation
+- **agua registry** may be possible to configure (see https://github.com/jdx/mise/discussions/4495 and https://github.com/jdx/mise/discussions/3979#discussioncomment-11770479)
 
 ## Installation
 
@@ -111,11 +120,11 @@ MISE_DEBUG=1 mise install postgres-binary:postgres@14.20.0 2>&1 | tee debug.log
 
 ### Unsupported Platform
 
-If you see "Unsupported platform" error, check:
+If you see the "Unsupported platform" error, check:
 
 1. Your OS and architecture: `uname -s` and `uname -m`
 2. Available platforms in [theseus-rs releases](https://github.com/theseus-rs/postgresql-binaries/releases)
-3. Consider using the source-based [mise-postgres](https://github.com/kyleking/mise-postgres) plugin
+3. Consider using the source-based [mise-postgres](https://github.com/mise-plugins/mise-postgres) plugin
 
 ### SHA256 Verification Failed
 
@@ -154,4 +163,4 @@ See [CONTRIBUTING.md](docs/CONTRIBUTING.md) for development setup and guidelines
 
 - Binaries provided by [theseus-rs/postgresql-binaries](https://github.com/theseus-rs/postgresql-binaries)
 - Plugin template from [mise-backend-plugin-template](https://github.com/jdx/mise-backend-plugin-template)
-- Inspired by [mise-postgres](https://github.com/kyleking/mise-postgres) (source-based)
+- Inspired by [mise-postgres](https://github.com/mise-plugins/mise-postgres)
