@@ -1,7 +1,7 @@
 # Dockerfile for testing mise-postgres-binary on Alpine (musl)
 FROM alpine:3.20
 
-ARG POSTGRES_VERSION=14.22.0
+ARG POSTGRES_VERSION=14.23.0
 
 # Install minimal dependencies + PostgreSQL runtime dependencies
 RUN apk add --no-cache \
