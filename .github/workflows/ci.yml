@@ -25,7 +25,7 @@ jobs:
       oldest_version: ${{ steps.versions.outputs.oldest_version }}
       pg_versions: ${{ steps.versions.outputs.pg_versions }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Load PostgreSQL versions from scripts/postgres-versions.json
         id: versions
         run: |
@@ -39,12 +39,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Install Lua and LuaRocks
         run: |
           sudo apt-get update
           sudo apt-get install -y lua5.4 liblua5.4-dev luarocks
-      - uses: actions/cache@v5
+      - uses: actions/cache@v6
         with:
           path: .luarocks
           key: luarocks-${{ runner.os }}-${{ hashFiles('mise.toml') }}
@@ -70,7 +70,7 @@ jobs:
         pg_version: ${{ fromJson(needs.setup.outputs.pg_versions) }}
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-mise-plugin
 
       - name: List available versions
@@ -123,7 +123,7 @@ jobs:
       matrix:
         target: [debian-pg14, alpine-pg14]
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
@@ -146,7 +146,7 @@ jobs:
     timeout-minutes: 30
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-mise-plugin
 
       - name: List available versions
