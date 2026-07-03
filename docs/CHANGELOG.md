@@ -1,3 +1,9 @@
+## 0.2.1 (2026-07-03)
+
+### Fix
+
+- update mise lockfile for CI
+
 ## 0.2.0 (2026-07-03)
 
 ### Feat
