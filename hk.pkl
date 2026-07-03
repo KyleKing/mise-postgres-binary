@@ -9,29 +9,26 @@ jobs = 0  // Auto-detect number of parallel jobs
 fail_fast = true  // Abort on first failure for faster feedback
 exclude = List("**/.luarocks/**", "**/luacov.*")
 
-/// Linter definitions
-/// Note: check_first disabled due to implementation limitations in hk 1.34.0
 local linters = new Mapping<String, Step> {
-    ["actionlint"] = (Builtins.actionlint) { check_first = false }
-    ["byte-order-marker"] = (Builtins.byte_order_marker) { check_first = false }
-    ["check-added-large-files"] = (Builtins.check_added_large_files) { check_first = false }
-    ["check-executables-have-shebangs"] = (Builtins.check_executables_have_shebangs) { check_first = false }
-    ["check-merge-conflict"] = (Builtins.check_merge_conflict) { check_first = false }
-    ["check-symlinks"] = (Builtins.check_symlinks) { check_first = false }
-    ["detect-private-key"] = (Builtins.detect_private_key) { check_first = false }
-    ["jq"] = (Builtins.jq) { check_first = false }
-    ["mixed-line-ending"] = (Builtins.mixed_line_ending) { check_first = false }
-    ["newlines"] = (Builtins.newlines) { check_first = false }
-    ["ruff"] = (Builtins.ruff) { check_first = false }
-    ["selene"] = (Builtins.selene) { check_first = false }
-    ["stylua"] = (Builtins.stylua) { check_first = false }
+    ["actionlint"] = Builtins.actionlint
+    ["byte-order-marker"] = Builtins.byte_order_marker
+    ["check-added-large-files"] = Builtins.check_added_large_files
+    ["check-executables-have-shebangs"] = Builtins.check_executables_have_shebangs
+    ["check-merge-conflict"] = Builtins.check_merge_conflict
+    ["check-symlinks"] = Builtins.check_symlinks
+    ["detect-private-key"] = Builtins.detect_private_key
+    ["jq"] = Builtins.jq
+    ["mixed-line-ending"] = Builtins.mixed_line_ending
+    ["newlines"] = Builtins.newlines
+    ["ruff"] = Builtins.ruff
+    ["selene"] = Builtins.selene
+    ["stylua"] = Builtins.stylua
     ["toml-sort"] {
         glob = List("**/*.toml")
         check = "toml-sort --check {{ files }}"
         fix = "toml-sort --in-place {{ files }}"
-        check_first = false
     }
-    ["trailing-whitespace"] = (Builtins.trailing_whitespace) { check_first = false }
+    ["trailing-whitespace"] = Builtins.trailing_whitespace
 }
 
 /// Hook definitions
