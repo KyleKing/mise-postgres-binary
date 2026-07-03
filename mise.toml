@@ -2,6 +2,10 @@
 MISE_USE_VERSIONS_HOST = "0"
 _.path = [".luarocks/bin"]
 
+[tasks.check-hk-version]
+description = "Verify hk version in mise.lock matches hk.pkl package URLs"
+run = "scripts/check_hk_version.py"
+
 [tasks.ci]
 depends = ["lint", "test", "test-integration"]
 description = "Run CI pipeline (lint + test)"
@@ -31,6 +35,10 @@ echo ""
 echo "Coverage summary:"
 grep -A 100 "^Summary" luacov.report.out | head -20
 '''
+
+[tasks.fix-hk-version]
+description = "Update hk.pkl package URLs to match hk version in mise.lock"
+run = "scripts/check_hk_version.py --fix"
 
 [tasks.format]
 description = "Format Lua code with stylua"
