@@ -9,6 +9,8 @@ function PLUGIN:BackendExecEnv(ctx)
         return { env_vars = {} }
     end
 
+    local os_type = RUNTIME and RUNTIME.osType and RUNTIME.osType:lower() or "linux"
+
     local env_vars = {
         {
             key = "PATH",
@@ -19,18 +21,16 @@ function PLUGIN:BackendExecEnv(ctx)
             value = install_path .. "/data",
         },
         {
-            key = "LD_LIBRARY_PATH",
-            value = install_path .. "/lib",
-        },
-        {
-            key = "DYLD_LIBRARY_PATH",
-            value = install_path .. "/lib",
-        },
-        {
             key = "PGHOME",
             value = install_path,
         },
     }
+
+    if os_type == "linux" then
+        table.insert(env_vars, { key = "LD_LIBRARY_PATH", value = install_path .. "/lib" })
+    elseif os_type == "darwin" then
+        table.insert(env_vars, { key = "DYLD_LIBRARY_PATH", value = install_path .. "/lib" })
+    end
 
     return { env_vars = env_vars }
 end
