@@ -1,0 +1,21 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended"
+  ],
+  "customManagers": [
+    {
+      "description": "Keep hk PKL package URL in sync with the hk tool version",
+      "customType": "regex",
+      "fileMatch": [
+        "^hk\\.pkl$"
+      ],
+      "matchStrings": [
+        "hk@(?<currentValue>[^#]+)#"
+      ],
+      "depNameTemplate": "jdx/hk",
+      "datasourceTemplate": "github-releases",
+      "extractVersionTemplate": "^v?(?<version>.+)$"
+    }
+  ]
+}
