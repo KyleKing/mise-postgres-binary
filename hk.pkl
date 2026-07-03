@@ -18,6 +18,11 @@ local linters = new Mapping<String, Step> {
     }
     ["byte-order-marker"] = Builtins.byte_order_marker
     ["check-added-large-files"] = Builtins.check_added_large_files
+    ["check-docker-versions"] {
+        glob = List("scripts/postgres-versions.json", "docker/docker-bake.hcl", "docker/Dockerfile.*")
+        check = "scripts/check_docker_versions.py"
+        fix = "scripts/check_docker_versions.py --fix"
+    }
     ["check-executables-have-shebangs"] = Builtins.check_executables_have_shebangs
     ["check-lockfile-platforms"] {
         glob = List("mise.toml", "hk.pkl", "mise.lock")

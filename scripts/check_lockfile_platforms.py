@@ -7,11 +7,10 @@
 import argparse
 import subprocess
 import sys
-import tomllib
-from pathlib import Path
+from dataclasses import dataclass
 
-REPO_ROOT = Path(__file__).parent.parent
-MISE_LOCK = REPO_ROOT / "mise.lock"
+from _script_utils import REPO_ROOT, load_tools
+
 ALL_PLATFORMS = [
     "linux-arm64",
     "linux-arm64-musl",
@@ -28,23 +27,27 @@ KNOWN_GAPS = {
 }
 
 
-def _tool_entries() -> dict[str, list[dict]]:
-    data = tomllib.loads(MISE_LOCK.read_text())
-    tools = data.get("tools", {})
-    return {
-        name: entries if isinstance(entries, list) else [entries]
-        for name, entries in tools.items()
-    }
+@dataclass(frozen=True)
+class Args:
+    fix: bool
+
+
+def _parse_args() -> Args:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--fix",
+        action="store_true",
+        help="Run `mise lock` for all platforms to fill gaps",
+    )
+    return Args(fix=parser.parse_args().fix)
 
 
 def _missing_platforms() -> dict[str, set[str]]:
     missing = {}
-    for name, entries in _tool_entries().items():
+    for name, entries in load_tools().items():
         for entry in entries:
             present = {
-                key.removeprefix("platforms.")
-                for key in entry
-                if key.startswith("platforms.")
+                key.removeprefix("platforms.") for key in entry if key.startswith("platforms.")
             }
             if not present:
                 continue
@@ -54,23 +57,21 @@ def _missing_platforms() -> dict[str, set[str]]:
     return missing
 
 
-def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument(
-        "--fix",
-        action="store_true",
-        help="Run `mise lock` for all platforms to fill gaps",
-    )
-    args = parser.parse_args()
+def _report(missing: dict[str, set[str]], prefix: str) -> None:
+    for tool, gap in missing.items():
+        print(f"{prefix} for {tool}: {', '.join(sorted(gap))}")
 
+
+def main() -> int:
+    args = _parse_args()
     missing = _missing_platforms()
+
     if not missing:
         print("OK: mise.lock has all platforms for every locked tool")
         return 0
 
     if not args.fix:
-        for tool, gap in missing.items():
-            print(f"Missing platforms for {tool}: {', '.join(sorted(gap))}")
+        _report(missing, "Missing platforms")
         print("Run with --fix, or: mise lock --platform " + ",".join(ALL_PLATFORMS))
         return 1
 
@@ -81,8 +82,7 @@ def main() -> int:
     )
     still_missing = _missing_platforms()
     if still_missing:
-        for tool, gap in still_missing.items():
-            print(f"Still missing platforms for {tool}: {', '.join(sorted(gap))}")
+        _report(still_missing, "Still missing platforms")
         return 1
     print("Fixed: mise.lock now has all platforms for every locked tool")
     return 0

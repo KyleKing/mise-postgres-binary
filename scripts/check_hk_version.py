@@ -7,16 +7,26 @@
 import argparse
 import re
 import sys
-import tomllib
-from pathlib import Path
+from dataclasses import dataclass
 
-REPO_ROOT = Path(__file__).parent.parent
+from _script_utils import REPO_ROOT, load_tools
+
 HK_PKL = REPO_ROOT / "hk.pkl"
 
 
+@dataclass(frozen=True)
+class Args:
+    fix: bool
+
+
+def _parse_args() -> Args:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--fix", action="store_true", help="Update hk.pkl to match mise.lock")
+    return Args(fix=parser.parse_args().fix)
+
+
 def _lock_version() -> str:
-    data = tomllib.loads((REPO_ROOT / "mise.lock").read_text())
-    entries = data.get("tools", {}).get("hk", [])
+    entries = load_tools().get("hk", [])
     if not entries:
         raise SystemExit("hk not found in mise.lock — run: mise lock")
     return entries[0]["version"]
@@ -39,12 +49,8 @@ def _update_pkl(new_version: str) -> None:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--fix", action="store_true", help="Update hk.pkl to match mise.lock")
-    args = parser.parse_args()
-
-    lock = _lock_version()
-    pkl = _pkl_version()
+    args = _parse_args()
+    lock, pkl = _lock_version(), _pkl_version()
 
     if lock == pkl:
         print(f"OK: hk version consistent ({lock})")
