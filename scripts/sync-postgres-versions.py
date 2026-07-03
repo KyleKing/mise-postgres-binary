@@ -70,17 +70,15 @@ def _version_tuple(version: str) -> tuple[int, ...]:
 
 
 def get_recommended_versions(available: dict[int, str]) -> dict[str, str]:
-    """Get newest and oldest of the 5 actively supported major versions."""
+    """Get newest, middle, and oldest of the 5 actively supported major versions."""
     supported_majors = sorted(available.keys(), reverse=True)[:NUM_SUPPORTED_VERSIONS]
 
-    if len(supported_majors) < 2:
-        oldest = supported_majors[-1] if supported_majors else None
-        newest = supported_majors[0] if supported_majors else None
-    else:
-        oldest = supported_majors[-1]
-        newest = supported_majors[0]
+    newest = supported_majors[0] if supported_majors else None
+    oldest = supported_majors[-1] if len(supported_majors) >= 2 else newest
+    middle = supported_majors[len(supported_majors) // 2] if len(supported_majors) >= 3 else oldest
 
     return {
+        "middle": available[middle] if middle else "",
         "newest": available[newest] if newest else "",
         "oldest": available[oldest] if oldest else "",
     }
@@ -198,6 +196,7 @@ def main() -> int:
     print()
     print("=== Current scripts/postgres-versions.json ===")
     print(f"  newest: {current.get('newest', 'N/A')}")
+    print(f"  middle: {current.get('middle', 'N/A')}")
     print(f"  oldest: {current.get('oldest', 'N/A')}")
 
     print()
@@ -207,8 +206,9 @@ def main() -> int:
         print(f"  PG {major}: {available[major]}")
 
     print()
-    print("=== Recommended versions (newest/oldest of supported) ===")
+    print("=== Recommended versions (newest/middle/oldest of supported) ===")
     print(f"  newest: {recommended['newest']} (PG {recommended['newest'].split('.')[0]})")
+    print(f"  middle: {recommended['middle']} (PG {recommended['middle'].split('.')[0]})")
     print(f"  oldest: {recommended['oldest']} (PG {recommended['oldest'].split('.')[0]})")
 
     versions_match = recommended == current
@@ -223,7 +223,10 @@ def main() -> int:
 
     if args.check:
         set_github_output("updated", "true")
-        set_github_output("new_versions", f"{recommended['newest']}, {recommended['oldest']}")
+        set_github_output(
+            "new_versions",
+            f"{recommended['newest']}, {recommended['middle']}, {recommended['oldest']}",
+        )
         return 0
 
     if args.apply:
@@ -243,7 +246,10 @@ def main() -> int:
         print(f"  test/Dockerfile.*: {'updated' if updated_dockerfiles else 'no changes'}")
 
         set_github_output("updated", "true")
-        set_github_output("new_versions", f"{recommended['newest']}, {recommended['oldest']}")
+        set_github_output(
+            "new_versions",
+            f"{recommended['newest']}, {recommended['middle']}, {recommended['oldest']}",
+        )
 
         print()
         print("Updates applied. Review changes with: git diff")

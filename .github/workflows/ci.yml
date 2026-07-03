@@ -30,9 +30,10 @@ jobs:
         id: versions
         run: |
           newest=$(jq -r '.newest' scripts/postgres-versions.json)
+          middle=$(jq -r '.middle' scripts/postgres-versions.json)
           oldest=$(jq -r '.oldest' scripts/postgres-versions.json)
           echo "oldest_version=$oldest" >> "$GITHUB_OUTPUT"
-          echo "pg_versions=[\"$newest\", \"$oldest\"]" >> "$GITHUB_OUTPUT"
+          echo "pg_versions=[\"$newest\", \"$middle\", \"$oldest\"]" >> "$GITHUB_OUTPUT"
 
   lint:
     name: Lint
