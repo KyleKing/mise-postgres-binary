@@ -19,6 +19,11 @@ local linters = new Mapping<String, Step> {
     ["byte-order-marker"] = Builtins.byte_order_marker
     ["check-added-large-files"] = Builtins.check_added_large_files
     ["check-executables-have-shebangs"] = Builtins.check_executables_have_shebangs
+    ["check-lockfile-platforms"] {
+        glob = List("mise.toml", "hk.pkl", "mise.lock")
+        check = "scripts/check_lockfile_platforms.py"
+        fix = "scripts/check_lockfile_platforms.py --fix"
+    }
     ["check-merge-conflict"] = Builtins.check_merge_conflict
     ["check-symlinks"] = Builtins.check_symlinks
     ["detect-private-key"] = Builtins.detect_private_key
