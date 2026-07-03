@@ -24,7 +24,7 @@ DOCKER_BAKE = REPO_ROOT / "docker/docker-bake.hcl"
 MISE_TOML = REPO_ROOT / "mise.toml"
 DOCKERFILES = list((REPO_ROOT / "docker").glob("Dockerfile.*"))
 NUM_SUPPORTED_VERSIONS = 5
-MIN_MAJOR_VERSION = 13
+MIN_MAJOR_VERSION = 14
 
 
 def fetch_available_versions() -> dict[int, str]:

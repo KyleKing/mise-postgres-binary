@@ -10,7 +10,7 @@ local function parse_major_version(version)
     return major and tonumber(major) or nil
 end
 
-local MIN_MAJOR_VERSION = 13
+local MIN_MAJOR_VERSION = 14
 local RELEASES_PER_PAGE = 100
 local MAX_PAGES = 2
 local REQUEST_TIMEOUT_MS = 30000

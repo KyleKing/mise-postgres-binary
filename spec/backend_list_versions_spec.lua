@@ -125,7 +125,7 @@ describe("backend_list_versions", function()
                 github_cache.set_cache = orig_set_cache
             end)
 
-            it("should filter by minimum major version (>= 13)", function()
+            it("should filter by minimum major version (>= 14)", function()
                 mock_http.get = function()
                     return {
                         status_code = 200,
@@ -140,7 +140,7 @@ describe("backend_list_versions", function()
 
                 assert.is_not_nil(result)
                 assert.is_table(result.versions)
-                assert.are.equal(3, #result.versions)
+                assert.are.equal(2, #result.versions)
 
                 local has_15 = false
                 local has_14 = false
@@ -163,7 +163,7 @@ describe("backend_list_versions", function()
 
                 assert.is_true(has_15, "Should include version 15.1.0")
                 assert.is_true(has_14, "Should include version 14.2.0")
-                assert.is_true(has_13, "Should include version 13.0.0")
+                assert.is_false(has_13, "Should exclude version 13.0.0 (EOL Nov 2025)")
                 assert.is_false(has_12, "Should exclude version 12.9.0")
             end)
 
