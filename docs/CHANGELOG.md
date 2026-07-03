@@ -1,3 +1,19 @@
+## 0.2.0 (2026-07-03)
+
+### Feat
+
+- replace Renovate config with a local Python script
+- add middle PostgreSQL version to CI test matrix
+
+### Fix
+
+- set platform-specific library path env var in BackendExecEnv
+- align setup-mise-plugin action to use mise-action@v4
+
+### Refactor
+
+- remove stale check_first=false workaround from hk.pkl
+
 ## 0.1.11 (2026-07-03)
 
 ### Fix
