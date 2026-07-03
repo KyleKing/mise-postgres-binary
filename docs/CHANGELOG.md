@@ -1,3 +1,9 @@
+## 0.1.11 (2026-07-03)
+
+### Fix
+
+- update hk PKL packages from v1.34.0 to v1.49.0
+
 ## 0.1.10 (2026-02-05)
 
 ### Refactor
