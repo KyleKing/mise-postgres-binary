@@ -185,7 +185,7 @@ run = "./scripts/sync-postgres-versions.py"
 [tools]
 actionlint = "latest"
 "cargo:selene" = "latest"
-hk = "1.49.0"
+hk = "1.53.0"
 "pipx:toml-sort" = "latest"
 pkl = "latest"
 ruff = "latest"

@@ -1,8 +1,8 @@
 /// hk configuration for linting and pre-commit hooks
 /// https://github.com/jdx/hk
-amends "package://github.com/jdx/hk/releases/download/v1.49.0/hk@1.49.0#/Config.pkl"
+amends "package://github.com/jdx/hk/releases/download/v1.53.0/hk@1.53.0#/Config.pkl"
 
-import "package://github.com/jdx/hk/releases/download/v1.49.0/hk@1.49.0#/Builtins.pkl"
+import "package://github.com/jdx/hk/releases/download/v1.53.0/hk@1.53.0#/Builtins.pkl"
 
 /// Global configuration
 jobs = 0  // Auto-detect number of parallel jobs
@@ -51,7 +51,6 @@ hooks {
     ["pre-commit"] {
         fix = true  // Auto-fix issues when possible
         stash = "git"  // Stash unstaged changes during hook execution
-        stage = true  // Auto-stage fixed files
         steps = linters
     }
     ["pre-push"] {
