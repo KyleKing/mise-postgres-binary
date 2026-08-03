@@ -1,3 +1,9 @@
+## 0.2.2 (2026-08-03)
+
+### Fix
+
+- **#11**: Reverse sort of artifact versions for mise latest
+
 ## 0.2.1 (2026-07-03)
 
 ### Fix
