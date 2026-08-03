@@ -1,6 +1,7 @@
 local http = require("http")
 local json = require("json")
 local github_cache = require("hooks.github_cache")
+local lib = require("hooks.lib")
 
 local function parse_major_version(version)
     if not version then
@@ -166,7 +167,7 @@ function PLUGIN:BackendListVersions(ctx)
     local cache_data = github_cache.get_cache()
 
     if cache_data and github_cache.is_cache_valid(cache_data) then
-        return { versions = cache_data.versions }
+        return { versions = lib.sort_versions(cache_data.versions) }
     end
 
     if cache_data and (cache_data.etag or cache_data.last_modified) then
@@ -177,12 +178,12 @@ function PLUGIN:BackendListVersions(ctx)
 
         if not releases then
             github_cache.touch_cache(cache_data)
-            return { versions = cache_data.versions }
+            return { versions = lib.sort_versions(cache_data.versions) }
         end
     end
 
     local pages, resp_headers = fetch_all_pages()
-    local all_versions = extract_versions(pages)
+    local all_versions = lib.sort_versions(extract_versions(pages))
 
     if #all_versions == 0 then
         error("No supported versions found in theseus-rs/postgresql-binaries releases")

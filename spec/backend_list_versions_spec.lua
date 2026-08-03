@@ -206,8 +206,29 @@ describe("backend_list_versions", function()
 
                 assert.is_true(cache_called)
                 assert.are.equal(2, #result.versions)
-                assert.are.equal("15.1.0", result.versions[1])
-                assert.are.equal("14.2.0", result.versions[2])
+                assert.are.equal("14.2.0", result.versions[1])
+                assert.are.equal("15.1.0", result.versions[2])
+            end)
+
+            it("should return versions in ascending order so prefix queries resolve to the newest", function()
+                local call_count = 0
+                mock_http.get = function()
+                    call_count = call_count + 1
+                    local body = call_count == 1
+                            and '[{"tag_name": "18.4.0"}, {"tag_name": "17.10.0"}, {"tag_name": "18.0.0"}, {"tag_name": "17.9.0"}, {"tag_name": "18.10.0"}]'
+                        or "[]"
+                    return {
+                        status_code = 200,
+                        body = body,
+                        headers = {},
+                    },
+                        nil
+                end
+
+                local ctx = { tool = "postgres" }
+                local result = backend_list_versions(PLUGIN, ctx)
+
+                assert.are.same({ "17.9.0", "17.10.0", "18.0.0", "18.4.0", "18.10.0" }, result.versions)
             end)
         end)
     end)

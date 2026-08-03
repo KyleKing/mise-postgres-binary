@@ -35,6 +35,39 @@ function M.parse_major_version(version)
     return major and tonumber(major) or nil
 end
 
+local function version_parts(version)
+    local parts = {}
+    for number in tostring(version):gmatch("%d+") do
+        table.insert(parts, tonumber(number))
+    end
+    return parts
+end
+
+--- Orders versions ascending so that mise resolves a prefix query to the newest match
+--- @param versions string[] Semver-like version strings
+--- @return string[] New sorted array; the input is left untouched
+function M.sort_versions(versions)
+    local sorted = {}
+    for index, version in ipairs(versions) do
+        sorted[index] = version
+    end
+
+    table.sort(sorted, function(left, right)
+        local left_parts = version_parts(left)
+        local right_parts = version_parts(right)
+        for index = 1, math.max(#left_parts, #right_parts) do
+            local left_part = left_parts[index] or 0
+            local right_part = right_parts[index] or 0
+            if left_part ~= right_part then
+                return left_part < right_part
+            end
+        end
+        return left < right
+    end)
+
+    return sorted
+end
+
 local RUST_TARGETS = {
     ["darwin-amd64"] = "x86_64-apple-darwin",
     ["darwin-arm64"] = "aarch64-apple-darwin",

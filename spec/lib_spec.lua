@@ -107,6 +107,29 @@ describe("lib", function()
         end)
     end)
 
+    describe("sort_versions", function()
+        it("orders numerically rather than lexicographically", function()
+            assert.are.same(
+                { "14.2.0", "14.10.0", "17.9.0", "17.10.0" },
+                lib.sort_versions({ "17.10.0", "14.10.0", "17.9.0", "14.2.0" })
+            )
+        end)
+
+        it("orders shorter versions before their patch releases", function()
+            assert.are.same({ "18", "18.0.0", "18.0.1" }, lib.sort_versions({ "18.0.1", "18", "18.0.0" }))
+        end)
+
+        it("leaves the input array unmodified", function()
+            local versions = { "15.1.0", "14.2.0" }
+            lib.sort_versions(versions)
+            assert.are.same({ "15.1.0", "14.2.0" }, versions)
+        end)
+
+        it("returns an empty array for an empty input", function()
+            assert.are.same({}, lib.sort_versions({}))
+        end)
+    end)
+
     describe("get_rust_target", function()
         it("returns darwin amd64 target", function()
             assert.are.equal("x86_64-apple-darwin", lib.get_rust_target("darwin", "amd64"))
