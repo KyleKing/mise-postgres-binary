@@ -5,6 +5,11 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# Cancelling can leave the bump commit pushed without its tag, so queue instead
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   bump-version:
     # Ignore commits from this action to prevent loops
