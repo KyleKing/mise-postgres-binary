@@ -499,6 +499,25 @@ local function initialize_pgdata(install_path)
     print(string.format("PGDATA location: %s", pgdata_dir))
 end
 
+--- Builds each requested extension from its pinned source commit into the installation
+--- @param extensions string[] Extension specs such as "pgvector@0.8.2"
+--- @param install_path string PostgreSQL installation directory
+local function install_extensions(extensions, install_path)
+    if RUNTIME.osType:lower() == "windows" then
+        error("The extensions option is not supported on Windows")
+    end
+
+    for _, spec in ipairs(extensions) do
+        local extension, err = lib.resolve_extension(spec)
+        if not extension then
+            error(err)
+        end
+
+        print(string.format("Building %s %s (requires git, make, and a C compiler)", extension.name, extension.version))
+        cmd.exec(lib.build_extension_script(extension, install_path))
+    end
+end
+
 --- Installs PostgreSQL from pre-built binaries with platform detection and SHA256 verification
 --- @param ctx table Context containing tool, version, and install_path
 --- @return table Empty table on success
@@ -578,6 +597,12 @@ function PLUGIN:BackendInstall(ctx)
     print("\n=== Initializing Database Cluster ===")
 
     initialize_pgdata(install_path)
+
+    local extensions = lib.normalize_extensions(ctx.options and ctx.options.extensions)
+    if #extensions > 0 then
+        print("\n=== Installing Extensions ===")
+        install_extensions(extensions, install_path)
+    end
 
     print(string.format("\n=== Installation Complete ==="))
     print(string.format("PostgreSQL %s installed successfully", version))
