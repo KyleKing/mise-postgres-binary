@@ -1,3 +1,9 @@
+## 0.3.0 (2026-11-05)
+
+### Feat
+
+- Build pinned pgvector via an extensions tool option (#15)
+
 ## 0.2.3 (2026-11-05)
 
 ### Fix
