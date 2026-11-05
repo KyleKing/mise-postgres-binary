@@ -100,6 +100,20 @@ function M.extensions_mismatch(requested, recorded)
     )
 end
 
+--- @param requested string[] Extension specs from the tool option
+--- @param control_exists fun(control: string): boolean Whether the install holds that extension's control file
+--- @return string Fingerprint for an install that has no marker, counting each requested extension whose control file exists
+function M.legacy_fingerprint(requested, control_exists)
+    local present = {}
+    for _, spec in ipairs(requested) do
+        local extension = M.resolve_extension(spec)
+        if extension and control_exists(extension.control) then
+            table.insert(present, spec)
+        end
+    end
+    return M.extensions_fingerprint(present)
+end
+
 --- @param spec string Extension spec such as "pgvector@0.8.2"
 --- @return table|nil Extension name, version, repo, and pinned commit
 --- @return string|nil Error message when the spec is not a pinned, supported extension
