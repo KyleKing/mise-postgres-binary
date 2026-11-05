@@ -71,6 +71,35 @@ function M.normalize_extensions(option)
     return specs
 end
 
+M.EXTENSIONS_MARKER = ".extensions"
+
+--- @param specs string[] Extension specs such as "pgvector@0.8.2"
+--- @return string Order-independent identity of the set, as stored in the install marker
+function M.extensions_fingerprint(specs)
+    local sorted = {}
+    for index, spec in ipairs(specs) do
+        sorted[index] = spec
+    end
+    table.sort(sorted)
+    return table.concat(sorted, ",")
+end
+
+--- @param requested string[] Extension specs from the tool option
+--- @param recorded string|nil Fingerprint stored at install time; nil for installs that predate the marker
+--- @return string|nil Error message when the install does not match the requested extensions
+function M.extensions_mismatch(requested, recorded)
+    local wanted = M.extensions_fingerprint(requested)
+    local installed = recorded or ""
+    if wanted == installed then
+        return nil
+    end
+    return string.format(
+        "Installed extensions [%s] differ from the requested extensions [%s]. Run: mise plugins install --force postgres-binary && mise install --force postgres-binary:postgres",
+        installed,
+        wanted
+    )
+end
+
 --- @param spec string Extension spec such as "pgvector@0.8.2"
 --- @return table|nil Extension name, version, repo, and pinned commit
 --- @return string|nil Error message when the spec is not a pinned, supported extension
@@ -114,9 +143,9 @@ function M.build_extension_script(extension, install_path)
         ),
         'if [ "$(uname -s)" = Darwin ]; then',
         '  sdk="$(xcrun --show-sdk-path)"',
-        '  set -- "CPPFLAGS=-isysroot $sdk" "LDFLAGS=-isysroot $sdk"',
+        '  set -- "OPTFLAGS=" "CPPFLAGS=-isysroot $sdk" "LDFLAGS=-isysroot $sdk"',
         "else",
-        "  set --",
+        '  set -- "OPTFLAGS="',
         "fi",
         string.format('pg_config="%s/bin/pg_config"', install_path),
         'make -C "$work/src" PG_CONFIG="$pg_config" "$@"',

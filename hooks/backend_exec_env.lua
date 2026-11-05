@@ -9,6 +9,17 @@ function PLUGIN:BackendExecEnv(ctx)
         return { env_vars = {} }
     end
 
+    local lib = require("hooks.lib")
+    local marker = io.open(install_path .. "/" .. lib.EXTENSIONS_MARKER, "r")
+    local recorded = marker and marker:read("*a")
+    if marker then
+        marker:close()
+    end
+    local mismatch = lib.extensions_mismatch(lib.normalize_extensions(ctx.options and ctx.options.extensions), recorded)
+    if mismatch then
+        error(mismatch)
+    end
+
     local os_type = RUNTIME and RUNTIME.osType and RUNTIME.osType:lower() or "linux"
 
     local env_vars = {
