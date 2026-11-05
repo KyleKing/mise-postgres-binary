@@ -516,6 +516,10 @@ local function install_extensions(extensions, install_path)
         print(string.format("Building %s %s (requires git, make, and a C compiler)", extension.name, extension.version))
         cmd.exec(lib.build_extension_script(extension, install_path))
     end
+
+    local marker = assert(io.open(install_path .. "/" .. lib.EXTENSIONS_MARKER, "w"))
+    marker:write(lib.extensions_fingerprint(extensions))
+    marker:close()
 end
 
 --- Installs PostgreSQL from pre-built binaries with platform detection and SHA256 verification
