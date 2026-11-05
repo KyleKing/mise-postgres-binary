@@ -1,3 +1,9 @@
+## 0.2.3 (2026-11-05)
+
+### Fix
+
+- fetch release checksums through the GitHub asset API
+
 ## 0.2.2 (2026-08-03)
 
 ### Fix
