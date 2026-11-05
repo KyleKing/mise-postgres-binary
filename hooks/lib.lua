@@ -47,6 +47,84 @@ function M.find_asset_api_url(release, asset_name)
     return nil
 end
 
+local EXTENSIONS = {
+    pgvector = {
+        control = "vector",
+        repo = "https://github.com/pgvector/pgvector.git",
+        commits = { ["0.8.2"] = "cab9da72c04353f143bb06b42ab70a403daac64a" },
+    },
+}
+
+--- @param option string|string[]|nil Value of the `extensions` tool option
+--- @return string[] Extension specs such as "pgvector@0.8.2"
+function M.normalize_extensions(option)
+    local specs = {}
+    if type(option) == "string" then
+        for spec in option:gmatch("[^,%s]+") do
+            table.insert(specs, spec)
+        end
+    elseif type(option) == "table" then
+        for _, spec in ipairs(option) do
+            table.insert(specs, spec)
+        end
+    end
+    return specs
+end
+
+--- @param spec string Extension spec such as "pgvector@0.8.2"
+--- @return table|nil Extension name, version, repo, and pinned commit
+--- @return string|nil Error message when the spec is not a pinned, supported extension
+function M.resolve_extension(spec)
+    local name, version = tostring(spec):match("^([%w_-]+)@([%w.]+)$")
+    if not name then
+        return nil, string.format("Invalid extension %q, expected name@version (e.g. pgvector@0.8.2)", tostring(spec))
+    end
+    local extension = EXTENSIONS[name]
+    if not extension then
+        return nil, string.format("Unsupported extension %q", name)
+    end
+    local commit = extension.commits[version]
+    if not commit then
+        local known = {}
+        for known_version in pairs(extension.commits) do
+            table.insert(known, known_version)
+        end
+        table.sort(known)
+        return nil, string.format("Unsupported %s version %s (supported: %s)", name, version, table.concat(known, ", "))
+    end
+    return { name = name, version = version, repo = extension.repo, commit = commit, control = extension.control }
+end
+
+--- @param extension table Result of resolve_extension
+--- @param install_path string PostgreSQL installation directory
+--- @return string POSIX shell script that builds the extension into install_path and fails on a commit mismatch
+function M.build_extension_script(extension, install_path)
+    return table.concat({
+        "set -eu",
+        'work="$(mktemp -d)"',
+        "trap 'rm -rf \"$work\"' EXIT",
+        string.format('git clone --quiet --depth 1 --branch "v%s" "%s" "$work/src"', extension.version, extension.repo),
+        'actual="$(git -C "$work/src" rev-parse HEAD)"',
+        string.format(
+            'if [ "$actual" != "%s" ]; then echo "%s v%s resolved to $actual, expected %s" >&2; exit 1; fi',
+            extension.commit,
+            extension.name,
+            extension.version,
+            extension.commit
+        ),
+        'if [ "$(uname -s)" = Darwin ]; then',
+        '  sdk="$(xcrun --show-sdk-path)"',
+        '  set -- "CPPFLAGS=-isysroot $sdk" "LDFLAGS=-isysroot $sdk"',
+        "else",
+        "  set --",
+        "fi",
+        string.format('pg_config="%s/bin/pg_config"', install_path),
+        'make -C "$work/src" PG_CONFIG="$pg_config" "$@"',
+        'make -C "$work/src" PG_CONFIG="$pg_config" "$@" install',
+        string.format('test -f "$("$pg_config" --sharedir)/extension/%s.control"', extension.control),
+    }, "\n")
+end
+
 function M.parse_major_version(version)
     if not version then
         return nil

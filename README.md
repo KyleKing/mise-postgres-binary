@@ -1,6 +1,6 @@
 # mise-postgres-binary
 
-mise backend plugin for installing PostgreSQL from pre-built binaries. Fast cross-platform installs with SHA256 verification and automatic PGDATA setup -- no compiler toolchain needed. Use a source-build plugin like [mise-postgres](https://github.com/mise-plugins/mise-postgres) if you need custom `./configure` options.
+mise backend plugin for installing PostgreSQL from pre-built binaries. Fast cross-platform installs with SHA256 verification and automatic PGDATA setup -- no compiler toolchain needed unless you opt into `extensions`. Use a source-build plugin like [mise-postgres](https://github.com/mise-plugins/mise-postgres) if you need custom `./configure` options.
 
 ## Alternatives
 
@@ -50,6 +50,17 @@ The plugin automatically sets up:
 - `LD_LIBRARY_PATH`: PostgreSQL lib directory (Linux)
 - `DYLD_LIBRARY_PATH`: PostgreSQL lib directory (macOS)
 - `PGHOME`: PostgreSQL installation directory
+
+### Extensions
+
+Opt in to building a pinned extension into the install. This needs `git`, `make`, and a C compiler (Xcode Command Line Tools or build-essential), is not supported on Windows, and a failed build fails the install.
+
+```toml
+[tools]
+"postgres-binary:postgres" = { version = "17.10.0", extensions = ["pgvector@0.8.2"] }
+```
+
+Supported: `pgvector@0.8.2`. The plugin checks the cloned tag against a commit hash pinned in [hooks/lib.lua](hooks/lib.lua). On macOS the build passes `-isysroot` because the prebuilt server records an SDK the machine may not have.
 
 ### Database Initialization
 

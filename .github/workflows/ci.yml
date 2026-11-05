@@ -114,6 +114,43 @@ jobs:
           psql -c "SELECT * FROM test_table;" postgres
           pg_ctl stop -D "$PGDATA" -m fast
 
+  test-extensions:
+    name: Test extensions (${{ matrix.os }})
+    needs: [lint, setup]
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-mise-plugin
+
+      - name: Install PostgreSQL with pgvector
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PG_VERSION: ${{ needs.setup.outputs.oldest_version }}
+        run: |
+          mkdir "$RUNNER_TEMP/ext" && cd "$RUNNER_TEMP/ext"
+          cat > mise.toml <<EOF
+          [tools]
+          "postgres-binary:postgres" = { version = "$PG_VERSION", extensions = ["pgvector@0.8.2"] }
+          EOF
+          mise trust
+          mise install
+
+      - name: Create the extension and query it
+        working-directory: ${{ runner.temp }}/ext
+        run: |
+          eval "$(mise activate bash)"
+          pg_ctl start -D "$PGDATA" -l "$RUNNER_TEMP/pg.log" -w
+          psql -v ON_ERROR_STOP=1 postgres <<SQL
+          CREATE EXTENSION vector;
+          SELECT '[1,2,3]'::vector <-> '[1,2,4]'::vector;
+          SQL
+          pg_ctl stop -D "$PGDATA" -m fast
+
   test-docker:
     name: Test Docker (${{ matrix.target }})
     needs: lint
