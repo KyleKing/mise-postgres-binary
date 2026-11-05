@@ -1,3 +1,9 @@
+## 0.3.1 (2026-11-05)
+
+### Fix
+
+- Build extensions portably and flag a changed extensions option (#16)
+
 ## 0.3.0 (2026-11-05)
 
 ### Feat
