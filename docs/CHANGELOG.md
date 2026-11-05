@@ -1,3 +1,9 @@
+## 0.3.2 (2026-11-05)
+
+### Fix
+
+- Accept extension installs that predate the marker file (#17)
+
 ## 0.3.1 (2026-11-05)
 
 ### Fix
