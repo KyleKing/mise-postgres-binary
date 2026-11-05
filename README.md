@@ -78,6 +78,10 @@ Binaries are sourced from [theseus-rs/postgresql-binaries](https://github.com/th
 | Linux | ARM64 (musl) | `aarch64-unknown-linux-musl` |
 | Windows | x86_64 | `x86_64-pc-windows-msvc` |
 
+### Checksums
+
+The expected SHA256 comes from the release's `.sha256` asset, fetched through the GitHub release-asset API (`api.github.com`) rather than the `github.com/.../releases/download` URL. Set `GITHUB_TOKEN` (or `GH_TOKEN`) to raise the API rate limit; the token goes only to `api.github.com` and is dropped on the redirect to asset storage.
+
 ### System Dependencies
 
 SHA256 checksum verification requires platform-specific tools:

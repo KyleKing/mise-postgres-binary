@@ -235,4 +235,23 @@ describe("lib", function()
             assert.are.equal("/c/Program Files/test", lib.windows_to_unix_path("C:\\Program Files\\test"))
         end)
     end)
+
+    describe("find_asset_api_url", function()
+        local release = {
+            assets = {
+                { name = "a.tar.gz", url = "https://api.github.com/assets/1" },
+                { name = "a.tar.gz.sha256", url = "https://api.github.com/assets/2" },
+            },
+        }
+
+        it("returns the API URL of the exact-named asset", function()
+            assert.are.equal("https://api.github.com/assets/2", lib.find_asset_api_url(release, "a.tar.gz.sha256"))
+        end)
+
+        it("returns nil for a missing asset or a malformed release", function()
+            assert.is_nil(lib.find_asset_api_url(release, "b.tar.gz.sha256"))
+            assert.is_nil(lib.find_asset_api_url({}, "a.tar.gz"))
+            assert.is_nil(lib.find_asset_api_url(nil, "a.tar.gz"))
+        end)
+    end)
 end)

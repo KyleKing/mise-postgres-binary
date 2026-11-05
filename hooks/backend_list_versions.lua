@@ -28,8 +28,8 @@ local function fetch_page(page, conditional_headers)
     )
 
     local headers = {}
-    local github_token = os.getenv("GITHUB_TOKEN") or os.getenv("GH_TOKEN")
-    if github_token and github_token ~= "" then
+    local github_token = lib.get_github_token()
+    if github_token then
         headers["Authorization"] = "Bearer " .. github_token
     end
 

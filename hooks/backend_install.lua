@@ -2,6 +2,7 @@ local cmd = require("cmd")
 local file = require("file")
 local http = require("http")
 local archiver = require("archiver")
+local json = require("json")
 local lib = require("hooks.lib")
 
 local function try_checksum_cmd(command, diagnostics, method, os_type)
@@ -179,6 +180,45 @@ local function get_rust_target()
     return target
 end
 
+local RELEASES_API_URL = "https://api.github.com/repos/theseus-rs/postgresql-binaries"
+
+--- Fetches the release checksum through the GitHub release-asset API
+--- @param version string PostgreSQL version
+--- @param checksum_filename string Name of the .sha256 release asset
+--- @return string Response body of the checksum asset
+--- @return string API URL of the checksum asset
+local function fetch_checksum_body(version, checksum_filename)
+    local token = lib.get_github_token()
+    local function request(url, accept)
+        local headers = { Accept = accept }
+        if token then
+            headers["Authorization"] = "Bearer " .. token
+        end
+        local resp, err = http.get({ url = url, headers = headers })
+        if err or resp.status_code ~= 200 then
+            error(table.concat({
+                "Failed to download checksum file.",
+                string.format("\nURL: %s", url),
+                string.format("Error: %s", tostring(err or ("HTTP " .. tostring(resp.status_code)))),
+                "\nPossible causes:",
+                "  - Version does not exist (check available versions at GitHub releases)",
+                "  - Network connectivity issues",
+                "  - GitHub API rate limiting (set GITHUB_TOKEN to raise the limit)",
+            }, "\n"))
+        end
+        return resp.body, url
+    end
+
+    local release_url = string.format("%s/releases/tags/%s", RELEASES_API_URL, version)
+    local release_body = request(release_url, "application/vnd.github+json")
+    local ok, release = pcall(json.decode, release_body)
+    local asset_url = ok and lib.find_asset_api_url(release, checksum_filename)
+    if not asset_url then
+        error(string.format("Release %s has no asset named %s\nURL: %s", version, checksum_filename, release_url))
+    end
+    return request(asset_url, "application/octet-stream")
+end
+
 --- Downloads PostgreSQL binary with SHA256 checksum verification
 --- @param version string PostgreSQL version (e.g., "15.10.0")
 --- @param platform string Rust target triple
@@ -189,33 +229,21 @@ local function download_and_verify_postgresql(version, platform, install_path)
 
     local filename = string.format("postgresql-%s-%s.tar.gz", version, platform)
     local download_url = base_url .. "/" .. filename
-    local checksum_url = download_url .. ".sha256"
+    local checksum_filename = filename .. ".sha256"
 
     local path_sep = os_type == "windows" and "\\" or "/"
     local temp_archive = install_path .. path_sep .. filename
 
-    print(string.format("Downloading checksum from: %s", checksum_url))
-    local checksum_resp, checksum_err = http.get({ url = checksum_url })
-    if checksum_err then
-        local error_msg = {
-            "Failed to download checksum file.",
-            string.format("\nURL: %s", checksum_url),
-            string.format("Error: %s", tostring(checksum_err)),
-            "\nPossible causes:",
-            "  - Version does not exist (check available versions at GitHub releases)",
-            "  - Network connectivity issues",
-            "  - GitHub API rate limiting",
-        }
-        error(table.concat(error_msg, "\n"))
-    end
+    print(string.format("Downloading checksum asset: %s", checksum_filename))
+    local checksum_body, checksum_url = fetch_checksum_body(version, checksum_filename)
 
-    local expected_sha256 = lib.parse_sha256_from_output(checksum_resp.body)
+    local expected_sha256 = lib.parse_sha256_from_output(checksum_body)
     if not expected_sha256 then
         local error_msg = {
             "Invalid checksum format in downloaded checksum file.",
             string.format("\nURL: %s", checksum_url),
             string.format("Expected: 64-character SHA256 hash"),
-            string.format("Received: %s", checksum_resp.body),
+            string.format("Received: %s", checksum_body),
             "\nThis may indicate:",
             "  - Corrupted checksum file on GitHub",
             "  - Network interception or modification",

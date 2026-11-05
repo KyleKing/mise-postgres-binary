@@ -27,6 +27,26 @@ function M.parse_sha256_from_output(output)
     return nil
 end
 
+function M.get_github_token()
+    local token = os.getenv("GITHUB_TOKEN") or os.getenv("GH_TOKEN")
+    if token and token ~= "" then
+        return token
+    end
+    return nil
+end
+
+--- @param release table Decoded GitHub release object
+--- @param asset_name string Exact asset file name
+--- @return string|nil Release-asset API URL, or nil when the release has no such asset
+function M.find_asset_api_url(release, asset_name)
+    for _, asset in ipairs(type(release) == "table" and release.assets or {}) do
+        if asset.name == asset_name then
+            return asset.url
+        end
+    end
+    return nil
+end
+
 function M.parse_major_version(version)
     if not version then
         return nil
