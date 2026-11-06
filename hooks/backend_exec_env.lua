@@ -9,27 +9,6 @@ function PLUGIN:BackendExecEnv(ctx)
         return { env_vars = {} }
     end
 
-    local lib = require("hooks.lib")
-    local requested = lib.normalize_extensions(ctx.options and ctx.options.extensions)
-    local marker = io.open(install_path .. "/" .. lib.EXTENSIONS_MARKER, "r")
-    local recorded
-    if marker then
-        recorded = marker:read("*a")
-        marker:close()
-    else
-        recorded = lib.legacy_fingerprint(requested, function(control)
-            local control_file = io.open(install_path .. "/share/extension/" .. control .. ".control", "r")
-            if control_file then
-                control_file:close()
-            end
-            return control_file ~= nil
-        end)
-    end
-    local mismatch = lib.extensions_mismatch(requested, recorded)
-    if mismatch then
-        error(mismatch)
-    end
-
     local os_type = RUNTIME and RUNTIME.osType and RUNTIME.osType:lower() or "linux"
 
     local env_vars = {

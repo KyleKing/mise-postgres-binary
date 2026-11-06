@@ -62,6 +62,8 @@ Opt in to building a pinned extension into the install. This needs `git`, `make`
 
 Supported: `pgvector@0.8.2`. The plugin checks the cloned tag against a commit hash pinned in [hooks/lib.lua](hooks/lib.lua). On macOS the build passes `-isysroot` because the prebuilt server records an SDK the machine may not have.
 
+mise skips a version that is already installed, so changing `extensions` does not rebuild it. Run `mise install --force postgres-binary:postgres` to rebuild.
+
 ### Database Initialization
 
 The plugin automatically runs `initdb` on first installation, creating a database cluster in `$PGDATA`.
