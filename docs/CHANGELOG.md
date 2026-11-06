@@ -1,3 +1,9 @@
+## 0.3.3 (2026-11-06)
+
+### Fix
+
+- Stop warning about extensions on installed versions the project never requested (#18)
+
 ## 0.3.2 (2026-11-05)
 
 ### Fix
