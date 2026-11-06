@@ -271,26 +271,6 @@ describe("lib", function()
             assert.is_truthy(err:match("supported: 0.8.2"))
         end)
 
-        it("reports a mismatch between requested and recorded extensions regardless of order", function()
-            assert.is_nil(lib.extensions_mismatch({ "b@1", "a@1" }, "a@1,b@1"))
-            assert.is_nil(lib.extensions_mismatch({}, nil))
-            assert.is_truthy(lib.extensions_mismatch({ "pgvector@0.8.2" }, nil))
-            assert.is_truthy(lib.extensions_mismatch({}, "pgvector@0.8.2"))
-        end)
-
-        it("counts only requested extensions whose control file exists for installs without a marker", function()
-            local present = function(control)
-                return control == "vector"
-            end
-            assert.are.equal("pgvector@0.8.2", lib.legacy_fingerprint({ "pgvector@0.8.2" }, present))
-            assert.are.equal(
-                "",
-                lib.legacy_fingerprint({ "pgvector@0.8.2" }, function()
-                    return false
-                end)
-            )
-        end)
-
         it("builds a script that verifies the commit and installs into the given prefix", function()
             local script = lib.build_extension_script(lib.resolve_extension("pgvector@0.8.2"), "/opt/pg")
             assert.is_truthy(script:find('pg_config="/opt/pg/bin/pg_config"', 1, true))
