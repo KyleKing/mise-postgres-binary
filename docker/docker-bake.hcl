@@ -12,8 +12,8 @@
 
 variable "PG_VERSIONS" {
   default = {
-    pg14 = "14.24.1"
-    pg18 = "18.6.1"
+    pg15 = "15.20.0"
+    pg19 = "19.0.0"
   }
 }
 
